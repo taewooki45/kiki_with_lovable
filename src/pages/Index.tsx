@@ -27,6 +27,26 @@ const Index = () => {
   const lastStepAtRef = useRef(0);
   const scaledStepBufferRef = useRef(0);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem("walk_goal_steps");
+    const parsed = raw ? Number(raw) : NaN;
+    if (Number.isFinite(parsed) && parsed > 0) {
+      setWalk((prev) => ({ ...prev, goalSteps: Math.round(parsed) }));
+    }
+
+    const onGoalUpdated = (evt: Event) => {
+      const custom = evt as CustomEvent<{ goalSteps?: number }>;
+      const next = custom.detail?.goalSteps;
+      if (next && Number.isFinite(next) && next > 0) {
+        setWalk((prev) => ({ ...prev, goalSteps: Math.round(next) }));
+      }
+    };
+
+    window.addEventListener("walk-goal-updated", onGoalUpdated);
+    return () => window.removeEventListener("walk-goal-updated", onGoalUpdated);
+  }, []);
+
   const addSteps = (rawSteps: number) => {
     if (rawSteps <= 0) return;
 

@@ -2,6 +2,7 @@ import { Footprints, Target, Coins, BarChart3, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/BottomNav";
 import { MOCK_USER_WALK } from "@/data/mockStocks";
+import { useEffect, useState } from "react";
 
 const WEEKLY_STEPS = [
   { day: "월", steps: 4120 },
@@ -14,7 +15,13 @@ const WEEKLY_STEPS = [
 ];
 
 const WalkPage = () => {
-  const walk = MOCK_USER_WALK;
+  const [goalSteps, setGoalSteps] = useState<number>(() => {
+    if (typeof window === "undefined") return MOCK_USER_WALK.goalSteps;
+    const raw = window.localStorage.getItem("walk_goal_steps");
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : MOCK_USER_WALK.goalSteps;
+  });
+  const walk = { ...MOCK_USER_WALK, goalSteps };
   const progress = Math.min((walk.todaySteps / walk.goalSteps) * 100, 100);
   const appShareUrl = "https://universal-layout-main.vercel.app/";
   const shareText = "캐시워크 주식 앱에서 같이 걸으며 투자해요!";
@@ -42,6 +49,18 @@ const WalkPage = () => {
       window.prompt("아래 링크를 복사해 카카오톡으로 공유해 주세요.", appShareUrl);
     }
   };
+
+  useEffect(() => {
+    const onGoalUpdated = (evt: Event) => {
+      const custom = evt as CustomEvent<{ goalSteps?: number }>;
+      const next = custom.detail?.goalSteps;
+      if (next && Number.isFinite(next) && next > 0) {
+        setGoalSteps(Math.round(next));
+      }
+    };
+    window.addEventListener("walk-goal-updated", onGoalUpdated);
+    return () => window.removeEventListener("walk-goal-updated", onGoalUpdated);
+  }, []);
 
   return (
     <div

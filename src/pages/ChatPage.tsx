@@ -31,7 +31,9 @@ function readGoalFromStorage(): number {
 
 function saveGoalToStorage(goal: number) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(GOAL_STORAGE_KEY, String(Math.round(goal)));
+  const rounded = Math.round(goal);
+  window.localStorage.setItem(GOAL_STORAGE_KEY, String(rounded));
+  window.dispatchEvent(new CustomEvent("walk-goal-updated", { detail: { goalSteps: rounded } }));
 }
 
 const ChatPage = () => {
