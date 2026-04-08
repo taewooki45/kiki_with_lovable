@@ -1,27 +1,12 @@
 import { Footprints, Target, Coins, BarChart3, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/BottomNav";
-import { MOCK_USER_WALK } from "@/data/mockStocks";
-import { useEffect, useState } from "react";
-
-const WEEKLY_STEPS = [
-  { day: "월", steps: 4120 },
-  { day: "화", steps: 5340 },
-  { day: "수", steps: 4880 },
-  { day: "목", steps: 6230 },
-  { day: "금", steps: 5720 },
-  { day: "토", steps: 7010 },
-  { day: "일", steps: 3247 },
-];
+import { useUserData } from "@/hooks/useUserData";
+import { useNavigate } from "react-router-dom";
 
 const WalkPage = () => {
-  const [goalSteps, setGoalSteps] = useState<number>(() => {
-    if (typeof window === "undefined") return MOCK_USER_WALK.goalSteps;
-    const raw = window.localStorage.getItem("walk_goal_steps");
-    const parsed = raw ? Number(raw) : NaN;
-    return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : MOCK_USER_WALK.goalSteps;
-  });
-  const walk = { ...MOCK_USER_WALK, goalSteps };
+  const navigate = useNavigate();
+  const { walk, weeklySteps } = useUserData();
   const progress = Math.min((walk.todaySteps / walk.goalSteps) * 100, 100);
   const appShareUrl = "https://universal-layout-main.vercel.app/";
   const shareText = "캐시워크 주식 앱에서 같이 걸으며 투자해요!";
@@ -49,18 +34,6 @@ const WalkPage = () => {
       window.prompt("아래 링크를 복사해 카카오톡으로 공유해 주세요.", appShareUrl);
     }
   };
-
-  useEffect(() => {
-    const onGoalUpdated = (evt: Event) => {
-      const custom = evt as CustomEvent<{ goalSteps?: number }>;
-      const next = custom.detail?.goalSteps;
-      if (next && Number.isFinite(next) && next > 0) {
-        setGoalSteps(Math.round(next));
-      }
-    };
-    window.addEventListener("walk-goal-updated", onGoalUpdated);
-    return () => window.removeEventListener("walk-goal-updated", onGoalUpdated);
-  }, []);
 
   return (
     <div
@@ -149,8 +122,8 @@ const WalkPage = () => {
         </div>
         <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
           <div className="flex h-40 items-end justify-between gap-2">
-            {WEEKLY_STEPS.map((item) => {
-              const max = Math.max(...WEEKLY_STEPS.map((v) => v.steps));
+            {weeklySteps.map((item) => {
+              const max = Math.max(1, ...weeklySteps.map((v) => v.steps));
               const heightPercent = Math.max(12, Math.round((item.steps / max) * 100));
               return (
                 <div key={item.day} className="flex flex-1 flex-col items-center gap-1">
@@ -170,7 +143,11 @@ const WalkPage = () => {
         </div>
 
         {/* Goal setting */}
-        <Button className="mt-6 w-full h-12 rounded-xl font-bold" aria-label="걸음 수 목표 변경">
+        <Button
+          className="mt-6 w-full h-12 rounded-xl font-bold"
+          aria-label="걸음 수 목표 변경"
+          onClick={() => navigate("/chat")}
+        >
           <Target className="mr-2 h-5 w-5" />
           걸음 목표 변경하기
         </Button>

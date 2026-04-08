@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/BottomNav";
 import type { ChatMessage } from "@/types/stock";
 import { askGlobalAssistant } from "@/lib/openaiChat";
+import { useUserData } from "@/hooks/useUserData";
 
 const QUICK_ACTIONS = [
   "500보로 살 수 있는 주식은?",
@@ -19,29 +20,14 @@ const INITIAL_MESSAGE: ChatMessage = {
   timestamp: new Date(),
 };
 
-const GOAL_STORAGE_KEY = "walk_goal_steps";
 const RECENT_3DAY_STEPS = [4880, 5720, 3247];
-
-function readGoalFromStorage(): number {
-  if (typeof window === "undefined") return 5000;
-  const raw = window.localStorage.getItem(GOAL_STORAGE_KEY);
-  const parsed = raw ? Number(raw) : NaN;
-  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : 5000;
-}
-
-function saveGoalToStorage(goal: number) {
-  if (typeof window === "undefined") return;
-  const rounded = Math.round(goal);
-  window.localStorage.setItem(GOAL_STORAGE_KEY, String(rounded));
-  window.dispatchEvent(new CustomEvent("walk-goal-updated", { detail: { goalSteps: rounded } }));
-}
 
 const ChatPage = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [goalSteps, setGoalSteps] = useState<number>(() => readGoalFromStorage());
   const [awaitingGoalChoice, setAwaitingGoalChoice] = useState(false);
+  const { walk, setGoalSteps } = useUserData();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,7 +61,6 @@ const ChatPage = () => {
 
       if (lower === "1" || /평균|최근 3일|자동/.test(lower)) {
         setGoalSteps(avg3);
-        saveGoalToStorage(avg3);
         setAwaitingGoalChoice(false);
         goalReply = `최근 3일 걸음 평균(${avg3.toLocaleString()}보)으로 목표를 변경했어요.\n\n현재 목표: ${avg3.toLocaleString()}보`;
       } else if (lower === "2") {
@@ -83,7 +68,6 @@ const ChatPage = () => {
       } else if (Number.isFinite(requested) && requested >= 1000 && requested <= 50000) {
         const nextGoal = Math.round(requested);
         setGoalSteps(nextGoal);
-        saveGoalToStorage(nextGoal);
         setAwaitingGoalChoice(false);
         goalReply = `요청하신 대로 걸음 목표를 ${nextGoal.toLocaleString()}보로 변경했어요.`;
       } else {
@@ -114,19 +98,17 @@ const ChatPage = () => {
       let goalReply: string;
       if (/평균|최근 3일|자동/.test(lower)) {
         setGoalSteps(avg3);
-        saveGoalToStorage(avg3);
         setAwaitingGoalChoice(false);
         goalReply = `최근 3일 걸음 평균(${avg3.toLocaleString()}보)으로 목표를 변경했어요.\n\n현재 목표: ${avg3.toLocaleString()}보`;
       } else if (Number.isFinite(requested) && requested >= 1000 && requested <= 50000) {
         const nextGoal = Math.round(requested);
         setGoalSteps(nextGoal);
-        saveGoalToStorage(nextGoal);
         setAwaitingGoalChoice(false);
         goalReply = `요청하신 대로 걸음 목표를 ${nextGoal.toLocaleString()}보로 변경했어요.`;
       } else {
         setAwaitingGoalChoice(true);
         goalReply = [
-          `현재 목표: ${goalSteps.toLocaleString()}보`,
+          `현재 목표: ${walk.goalSteps.toLocaleString()}보`,
           `최근 3일 평균: ${avg3.toLocaleString()}보`,
           "",
           "원하는 방식으로 답장해 주세요:",

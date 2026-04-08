@@ -4,7 +4,7 @@ import StepCounter from "@/components/StepCounter";
 import StockInfoSheet from "@/components/StockInfoSheet";
 import TrendingSection from "@/components/TrendingSection";
 import BottomNav from "@/components/BottomNav";
-import { MOCK_STOCKS, MOCK_USER_WALK, MOCK_TRENDING, DEFAULT_CENTER, DEFAULT_RADIUS_M } from "@/data/mockStocks";
+import { MOCK_STOCKS, MOCK_TRENDING, DEFAULT_CENTER, DEFAULT_RADIUS_M } from "@/data/mockStocks";
 import type { StockPin } from "@/types/stock";
 import { Compass, MapPin, MessageCircle } from "lucide-react";
 import { useUserLocation } from "@/hooks/useUserLocation";
@@ -14,6 +14,7 @@ import { fetchNearbyCompanies } from "@/lib/companyApi";
 import { fetchYahooQuotes } from "@/lib/quoteApi";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserData } from "@/hooks/useUserData";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -22,34 +23,14 @@ const Index = () => {
   const [showTrending, setShowTrending] = useState(false);
   const { center, accuracyM, status, refreshLocation } = useUserLocation(DEFAULT_CENTER);
   const [stocks, setStocks] = useState<StockPin[]>(MOCK_STOCKS);
-  const [walk, setWalk] = useState(MOCK_USER_WALK);
+  const { walk, addSteps, setGoalSteps } = useUserData();
   const stocksRef = useRef<StockPin[]>(MOCK_STOCKS);
   const prevCenterRef = useRef<{ lat: number; lng: number } | null>(null);
   const gravityRef = useRef(9.8);
   const lastStepAtRef = useRef(0);
   const scaledStepBufferRef = useRef(0);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem("walk_goal_steps");
-    const parsed = raw ? Number(raw) : NaN;
-    if (Number.isFinite(parsed) && parsed > 0) {
-      setWalk((prev) => ({ ...prev, goalSteps: Math.round(parsed) }));
-    }
-
-    const onGoalUpdated = (evt: Event) => {
-      const custom = evt as CustomEvent<{ goalSteps?: number }>;
-      const next = custom.detail?.goalSteps;
-      if (next && Number.isFinite(next) && next > 0) {
-        setWalk((prev) => ({ ...prev, goalSteps: Math.round(next) }));
-      }
-    };
-
-    window.addEventListener("walk-goal-updated", onGoalUpdated);
-    return () => window.removeEventListener("walk-goal-updated", onGoalUpdated);
-  }, []);
-
-  const addSteps = (rawSteps: number) => {
+  const addScaledSteps = (rawSteps: number) => {
     if (rawSteps <= 0) return;
 
     // 요청사항: 기존 대비 걸음 증가량을 1/5로 축소
@@ -59,11 +40,7 @@ const Index = () => {
     if (addedSteps <= 0) return;
     scaledStepBufferRef.current -= addedSteps;
 
-    setWalk((prevWalk) => ({
-      ...prevWalk,
-      todaySteps: prevWalk.todaySteps + addedSteps,
-      cashBalance: Math.round((prevWalk.cashBalance + addedSteps * prevWalk.cashPerStep) * 10) / 10,
-    }));
+    addSteps(addedSteps);
   };
 
   useEffect(() => {
@@ -147,13 +124,12 @@ const Index = () => {
       try {
         const stats = await StepTracker.getStats();
         if (!isMounted) return;
-        setWalk((prev) => ({
-          ...prev,
-          todaySteps: stats.steps,
-          goalSteps: stats.goal,
-          cashPerStep: stats.cashPerStep,
-          cashBalance: Math.round(stats.cash * 10) / 10,
-        }));
+        if (stats.goal && stats.goal !== walk.goalSteps) {
+          setGoalSteps(stats.goal);
+        }
+        if (stats.steps > walk.todaySteps) {
+          addSteps(stats.steps - walk.todaySteps);
+        }
       } catch {
         // 네이티브 플러그인 실패 시 기존 fallback 로직 사용
       }
@@ -201,7 +177,7 @@ const Index = () => {
       const threshold = 1.2;
       if (dynamic > threshold && now - lastStepAtRef.current > cooldownMs) {
         lastStepAtRef.current = now;
-        addSteps(1);
+        addScaledSteps(1);
       }
     };
 
@@ -238,7 +214,7 @@ const Index = () => {
     // 보폭 평균 0.75m 기준으로 환산
     const addedSteps = Math.max(1, Math.round(movedM / 0.75));
 
-    addSteps(addedSteps);
+    addScaledSteps(addedSteps);
   }, [center, status, accuracyM]);
 
   return (

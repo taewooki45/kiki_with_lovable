@@ -1,8 +1,12 @@
 import { User, Wallet, Link2, Settings, ChevronRight, Shield } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
-import { MOCK_USER_WALK, MOCK_HOLDINGS } from "@/data/mockStocks";
+import { MOCK_HOLDINGS } from "@/data/mockStocks";
+import { useUserData } from "@/hooks/useUserData";
+import { useState } from "react";
 
 const ProfilePage = () => {
+  const { walk, nickname, setNickname } = useUserData();
+  const [nicknameInput, setNicknameInput] = useState("");
   const totalValue = MOCK_HOLDINGS.reduce((sum, h) => sum + h.currentPrice * h.shares, 0);
 
   return (
@@ -14,9 +18,31 @@ const ProfilePage = () => {
             <User className="h-8 w-8 text-primary" />
           </div>
           <div className="min-w-0">
-            <h1 className="font-display text-lg font-bold tracking-tight text-foreground">투자자님</h1>
+            <h1 className="font-display text-lg font-bold tracking-tight text-foreground">{nickname}</h1>
             <p className="text-sm text-muted-foreground">캐시워크 투자 3일차 🎉</p>
           </div>
+        </div>
+
+        <div className="mt-4 flex items-center gap-2">
+          <input
+            value={nicknameInput}
+            onChange={(e) => setNicknameInput(e.target.value)}
+            placeholder="닉네임 입력"
+            className="h-10 flex-1 rounded-lg border border-border/70 bg-background px-3 text-sm"
+            aria-label="닉네임 입력"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (!nicknameInput.trim()) return;
+              setNickname(nicknameInput);
+              setNicknameInput("");
+            }}
+            className="h-10 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground"
+            aria-label="닉네임 저장"
+          >
+            저장
+          </button>
         </div>
 
         {/* Summary cards */}
@@ -24,7 +50,7 @@ const ProfilePage = () => {
           <div className="rounded-xl border border-border/50 bg-muted/40 p-4">
             <p className="text-xs text-muted-foreground">보유 캐시</p>
             <p className="mt-1 font-display text-lg font-bold tabular-nums text-foreground">
-              {MOCK_USER_WALK.cashBalance.toLocaleString()}원
+              {walk.cashBalance.toLocaleString()}원
             </p>
           </div>
           <div className="rounded-xl border border-border/50 bg-muted/40 p-4">
