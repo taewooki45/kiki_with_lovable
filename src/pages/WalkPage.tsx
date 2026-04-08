@@ -16,6 +16,32 @@ const WEEKLY_STEPS = [
 const WalkPage = () => {
   const walk = MOCK_USER_WALK;
   const progress = Math.min((walk.todaySteps / walk.goalSteps) * 100, 100);
+  const appShareUrl = "https://universal-layout-main.vercel.app/";
+  const shareText = "캐시워크 주식 앱에서 같이 걸으며 투자해요!";
+
+  const openKakaoShare = () => {
+    const kakaoUrl = `https://sharer.kakao.com/talk/friends/picker/link?url=${encodeURIComponent(
+      appShareUrl,
+    )}&text=${encodeURIComponent(shareText)}`;
+    window.open(kakaoUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const shareToFriend = async () => {
+    try {
+      // 모바일 브라우저/앱 Web Share 지원 시 기본 공유 시트를 우선 사용
+      if (navigator.share) {
+        await navigator.share({
+          title: "캐시워크 주식",
+          text: shareText,
+          url: appShareUrl,
+        });
+        return;
+      }
+    } catch {
+      // 사용자가 공유 시트를 닫았거나 실패한 경우 카카오 공유로 fallback
+    }
+    openKakaoShare();
+  };
 
   return (
     <div
@@ -78,10 +104,30 @@ const WalkPage = () => {
 
       {/* Weekly steps chart */}
       <div className="px-4 pb-2 pt-2">
-        <h2 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-foreground">
-          <BarChart3 className="h-4 w-4 text-primary" />
-          최근 1주 걸음수
-        </h2>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 font-display text-base font-bold text-foreground">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            최근 1주 걸음수
+          </h2>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={shareToFriend}
+              className="rounded-full border border-border/70 bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted/70"
+              aria-label="친구 초대 공유"
+            >
+              친구초대
+            </button>
+            <button
+              type="button"
+              onClick={openKakaoShare}
+              className="rounded-full border border-border/70 bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground transition-opacity hover:opacity-90"
+              aria-label="카카오톡으로 친구에게 공유"
+            >
+              친구에게 공유
+            </button>
+          </div>
+        </div>
         <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
           <div className="flex h-40 items-end justify-between gap-2">
             {WEEKLY_STEPS.map((item) => {

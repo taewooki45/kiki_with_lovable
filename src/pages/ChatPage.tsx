@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Bot, Sparkles } from "lucide-react";
+import { Send, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/BottomNav";
 import type { ChatMessage } from "@/types/stock";
@@ -108,7 +108,6 @@ const ChatPage = () => {
           {isLoading && (
             <div className="flex justify-start">
               <div className="flex items-center gap-2 rounded-2xl border border-border/50 bg-card px-4 py-3 shadow-sm">
-                <Sparkles className="h-4 w-4 animate-pulse text-primary" aria-hidden />
                 <span className="text-sm text-muted-foreground">생각하는 중...</span>
               </div>
             </div>
