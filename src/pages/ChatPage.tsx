@@ -1,0 +1,181 @@
+import { useState, useRef, useEffect } from "react";
+import { Send, Bot, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import BottomNav from "@/components/BottomNav";
+import type { ChatMessage } from "@/types/stock";
+import { askGlobalAssistant } from "@/lib/openaiChat";
+
+const QUICK_ACTIONS = [
+  "500보로 살 수 있는 주식은?",
+  "근처 삼성전자 정보 알려줘",
+  "오늘의 주식 퀴즈!",
+  "걸음 목표 업데이트해줘",
+];
+
+const INITIAL_MESSAGE: ChatMessage = {
+  id: "welcome",
+  role: "assistant",
+  content: "안녕하세요! 👋 캐시워크 주식 도우미입니다.\n\n걸음수로 매수 가능한 종목을 알아보거나, 근처 기업 정보를 검색해보세요. 주식 퀴즈도 풀 수 있어요!",
+  timestamp: new Date(),
+};
+
+const ChatPage = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
+
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || isLoading) return;
+
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      role: "user",
+      content: text.trim(),
+      timestamp: new Date(),
+    };
+
+    const historyAfterUser = [...messages, userMsg];
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setIsLoading(true);
+
+    try {
+      const reply = await askGlobalAssistant(historyAfterUser);
+      const botMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: reply,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, botMsg]);
+    } catch {
+      const botMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: `${getMockResponse(text)}\n\n— OpenAI 연결 없이 데모 답변이에요. .env에 OPENAI_API_KEY를 설정해 보세요.`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, botMsg]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendMessage(input);
+  };
+
+  return (
+    <div className="mx-auto flex h-[100dvh] max-w-lg flex-col bg-background" data-testid="chat-screen">
+      {/* Header */}
+      <header className="sticky top-0 z-10 border-b border-border/80 bg-card/90 px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] backdrop-blur-md supports-[backdrop-filter]:bg-card/75">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/10">
+            <Bot className="h-5 w-5 text-primary" aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <h1 className="font-display text-base font-bold tracking-tight text-foreground">주식 도우미</h1>
+            <p className="text-xs text-muted-foreground">종목 정보 · 퀴즈 · 걸음 설정</p>
+          </div>
+        </div>
+      </header>
+
+      {/* Messages */}
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto p-4 pb-4 no-scrollbar">
+        <div className="mx-auto max-w-lg space-y-4">
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
+                  msg.role === "user"
+                    ? "rounded-br-md bg-primary text-primary-foreground"
+                    : "rounded-bl-md border border-border/50 bg-card text-card-foreground"
+                }`}
+              >
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="flex items-center gap-2 rounded-2xl border border-border/50 bg-card px-4 py-3 shadow-sm">
+                <Sparkles className="h-4 w-4 animate-pulse text-primary" aria-hidden />
+                <span className="text-sm text-muted-foreground">생각하는 중...</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Quick actions + 입력 (하단 탭 위 고정) */}
+      <div className="border-t border-border/80 bg-card/95 px-4 pt-3 backdrop-blur-md supports-[backdrop-filter]:bg-card/85">
+        <div className="no-scrollbar mb-3 flex gap-2 overflow-x-auto pb-0.5 pl-0.5">
+          {QUICK_ACTIONS.map((action) => (
+            <button
+              key={action}
+              type="button"
+              onClick={() => sendMessage(action)}
+              className="min-h-[36px] shrink-0 rounded-full border border-border/70 bg-muted/40 px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/80 active:scale-[0.98]"
+            >
+              {action}
+            </button>
+          ))}
+        </div>
+
+        {/* Input */}
+        <form
+          onSubmit={handleSubmit}
+          className="flex items-center gap-2 pb-[calc(env(safe-area-inset-bottom,0px)+72px)]"
+        >
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="궁금한 종목이나 걸음 설정을 물어보세요"
+            className="min-h-[48px] flex-1 rounded-xl border border-input bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="메시지 입력"
+          />
+          <Button
+            type="submit"
+            size="icon"
+            className="h-12 w-12 shrink-0 rounded-xl"
+            disabled={!input.trim() || isLoading}
+            aria-label="메시지 전송"
+          >
+            <Send className="h-5 w-5" />
+          </Button>
+        </form>
+      </div>
+
+      <BottomNav />
+    </div>
+  );
+};
+
+/** Mock responses - will be replaced with real AI */
+function getMockResponse(input: string): string {
+  const lower = input.toLowerCase();
+  if (lower.includes("500보") || lower.includes("걸음")) {
+    return "500보 = 약 250원이에요! 💰\n\n현재 반경 500m 내에서 250원 이하로 매수 가능한 종목은 없지만, 1,000보를 더 걸으면 삼성전자 1주(72,400원)에 한 발짝 더 가까워져요.\n\n목표를 5,000보로 올려볼까요?";
+  }
+  if (lower.includes("삼성")) {
+    return "📊 삼성전자 (005930)\n\n• 현재가: 72,400원 (+1.2%)\n• 업종: 반도체\n• 시가총액: 431조원\n\n글로벌 메모리 반도체 1위, 스마트폰·디스플레이 사업도 영위하고 있어요. 최근 AI 반도체 수주 기대감으로 상승세입니다.";
+  }
+  if (lower.includes("퀴즈")) {
+    return "🧠 주식 퀴즈!\n\nQ: 대한민국에서 시가총액이 가장 큰 기업은?\n\n1️⃣ SK하이닉스\n2️⃣ 삼성전자\n3️⃣ NAVER\n4️⃣ LG에너지솔루션\n\n번호로 답해보세요!";
+  }
+  if (lower.includes("업데이트") || lower.includes("목표")) {
+    return "현재 목표: 5,000보\n오늘 걸음: 3,247보 (65% 달성)\n\n목표를 변경하시겠어요?\n• 3,000보 → 일일 약 1,500원\n• 5,000보 → 일일 약 2,500원\n• 10,000보 → 일일 약 5,000원\n\n원하는 걸음 수를 알려주세요!";
+  }
+  return "좋은 질문이에요! 🙌\n\n현재 반경 500m 내에 12개 종목이 있어요. 지도로 돌아가서 핀을 눌러보시면 기업 정보를 확인할 수 있어요.\n\n다른 궁금한 점이 있으시면 말씀해주세요!";
+}
+
+export default ChatPage;
