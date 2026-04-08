@@ -1,7 +1,17 @@
-import { Footprints, Target, Coins, TrendingUp, Award } from "lucide-react";
+import { Footprints, Target, Coins, BarChart3, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/BottomNav";
-import { MOCK_USER_WALK, MOCK_HOLDINGS } from "@/data/mockStocks";
+import { MOCK_USER_WALK } from "@/data/mockStocks";
+
+const WEEKLY_STEPS = [
+  { day: "월", steps: 4120 },
+  { day: "화", steps: 5340 },
+  { day: "수", steps: 4880 },
+  { day: "목", steps: 6230 },
+  { day: "금", steps: 5720 },
+  { day: "토", steps: 7010 },
+  { day: "일", steps: 3247 },
+];
 
 const WalkPage = () => {
   const walk = MOCK_USER_WALK;
@@ -66,35 +76,32 @@ const WalkPage = () => {
         </div>
       </div>
 
-      {/* Holdings */}
+      {/* Weekly steps chart */}
       <div className="px-4 pb-2 pt-2">
         <h2 className="mb-3 flex items-center gap-2 font-display text-base font-bold text-foreground">
-          <TrendingUp className="h-4 w-4 text-primary" />
-          보유 종목
+          <BarChart3 className="h-4 w-4 text-primary" />
+          최근 1주 걸음수
         </h2>
-        <div className="space-y-3">
-          {MOCK_HOLDINGS.map((h) => {
-            const pnl = (h.currentPrice - h.avgPrice) * h.shares;
-            const pnlPercent = ((h.currentPrice - h.avgPrice) / h.avgPrice) * 100;
-            const isUp = pnl >= 0;
-            return (
-              <div
-                key={h.ticker}
-                className="flex items-center justify-between rounded-xl border border-border/60 bg-card p-4 shadow-sm"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{h.name}</p>
-                  <p className="text-xs text-muted-foreground">{h.shares}주 · 평균 {h.avgPrice.toLocaleString()}원</p>
+        <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
+          <div className="flex h-40 items-end justify-between gap-2">
+            {WEEKLY_STEPS.map((item) => {
+              const max = Math.max(...WEEKLY_STEPS.map((v) => v.steps));
+              const heightPercent = Math.max(12, Math.round((item.steps / max) * 100));
+              return (
+                <div key={item.day} className="flex flex-1 flex-col items-center gap-1">
+                  <div className="text-[10px] font-medium text-muted-foreground">{item.steps.toLocaleString()}</div>
+                  <div className="flex h-28 w-full items-end rounded-md bg-muted/40 px-1">
+                    <div
+                      className="w-full rounded-sm bg-primary/85 transition-all"
+                      style={{ height: `${heightPercent}%` }}
+                      aria-label={`${item.day} ${item.steps.toLocaleString()}보`}
+                    />
+                  </div>
+                  <div className="text-xs font-medium text-foreground">{item.day}</div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-foreground">{(h.currentPrice * h.shares).toLocaleString()}원</p>
-                  <p className={`text-xs font-medium ${isUp ? "text-destructive" : "text-accent"}`}>
-                    {isUp ? "+" : ""}{pnl.toLocaleString()}원 ({isUp ? "+" : ""}{pnlPercent.toFixed(1)}%)
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
         {/* Goal setting */}

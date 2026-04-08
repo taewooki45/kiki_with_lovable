@@ -6,14 +6,16 @@ import TrendingSection from "@/components/TrendingSection";
 import BottomNav from "@/components/BottomNav";
 import { MOCK_STOCKS, MOCK_USER_WALK, MOCK_TRENDING, DEFAULT_CENTER, DEFAULT_RADIUS_M } from "@/data/mockStocks";
 import type { StockPin } from "@/types/stock";
-import { Compass, MapPin } from "lucide-react";
+import { Compass, MapPin, MessageCircle } from "lucide-react";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { Capacitor } from "@capacitor/core";
 import { StepTracker } from "@/plugins/stepTracker";
 import { fetchNearbyCompanies } from "@/lib/companyApi";
 import { fetchYahooQuotes } from "@/lib/quoteApi";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [selectedStock, setSelectedStock] = useState<StockPin | null>(null);
   const [showTrending, setShowTrending] = useState(false);
   const { center, accuracyM, status, refreshLocation } = useUserLocation(DEFAULT_CENTER);
@@ -241,6 +243,14 @@ const Index = () => {
         className="pointer-events-auto absolute bottom-[88px] right-[max(1rem,env(safe-area-inset-right))] z-[1200] flex flex-col gap-2"
         style={{ touchAction: "manipulation" }}
       >
+        <button
+          type="button"
+          onClick={() => navigate("/chat")}
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-md ring-2 ring-background/80 transition-transform active:scale-95"
+          aria-label="챗봇 열기"
+        >
+          <MessageCircle className="h-5 w-5" />
+        </button>
         <button
           type="button"
           onClick={refreshLocation}

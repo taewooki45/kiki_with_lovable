@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index";
 import WalkPage from "./pages/WalkPage";
 import ChatPage from "./pages/ChatPage";
+import HoldingsPage from "./pages/HoldingsPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotFound from "./pages/NotFound";
 
@@ -21,6 +22,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/walk" element={<WalkPage />} />
           <Route path="/chat" element={<ChatPage />} />
+          <Route path="/holdings" element={<HoldingsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

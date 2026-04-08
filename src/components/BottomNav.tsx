@@ -1,4 +1,4 @@
-import { Map, Footprints, MessageCircle, User } from "lucide-react";
+import { Map, Footprints, BriefcaseBusiness, User } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 interface NavItem {
@@ -10,7 +10,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { path: "/", label: "지도", icon: Map },
   { path: "/walk", label: "걷기", icon: Footprints },
-  { path: "/chat", label: "챗봇", icon: MessageCircle },
+  { path: "/holdings", label: "보유 종목", icon: BriefcaseBusiness },
   { path: "/profile", label: "내 정보", icon: User },
 ];
 
