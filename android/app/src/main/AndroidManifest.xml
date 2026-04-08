@@ -33,6 +33,12 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <service
+            android:name=".StepTrackingService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="health" />
     </application>
 
     <!-- Permissions -->
@@ -40,4 +46,11 @@
     <!-- WebView 지도·navigator.geolocation -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- 걸음수 센서 -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <!-- 포그라운드 서비스(백그라운드 걸음 측정 유지) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <!-- Android 13+ 알림 권한 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>
