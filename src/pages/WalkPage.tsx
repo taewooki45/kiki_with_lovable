@@ -19,13 +19,6 @@ const WalkPage = () => {
   const appShareUrl = "https://universal-layout-main.vercel.app/";
   const shareText = "캐시워크 주식 앱에서 같이 걸으며 투자해요!";
 
-  const openKakaoShare = () => {
-    const kakaoUrl = `https://sharer.kakao.com/talk/friends/picker/link?url=${encodeURIComponent(
-      appShareUrl,
-    )}&text=${encodeURIComponent(shareText)}`;
-    window.open(kakaoUrl, "_blank", "noopener,noreferrer");
-  };
-
   const shareToFriend = async () => {
     try {
       // 모바일 브라우저/앱 Web Share 지원 시 기본 공유 시트를 우선 사용
@@ -38,9 +31,16 @@ const WalkPage = () => {
         return;
       }
     } catch {
-      // 사용자가 공유 시트를 닫았거나 실패한 경우 카카오 공유로 fallback
+      // 사용자가 공유 시트를 닫은 경우는 추가 동작 없이 종료
+      return;
     }
-    openKakaoShare();
+    // Web Share 미지원 환경: 링크 복사 fallback
+    try {
+      await navigator.clipboard.writeText(appShareUrl);
+      window.alert("공유 링크가 복사되었습니다. 카카오톡 채팅창에 붙여넣어 공유해 주세요.");
+    } catch {
+      window.prompt("아래 링크를 복사해 카카오톡으로 공유해 주세요.", appShareUrl);
+    }
   };
 
   return (
@@ -120,7 +120,7 @@ const WalkPage = () => {
             </button>
             <button
               type="button"
-              onClick={openKakaoShare}
+              onClick={shareToFriend}
               className="rounded-full border border-border/70 bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground transition-opacity hover:opacity-90"
               aria-label="카카오톡으로 친구에게 공유"
             >

@@ -19,10 +19,26 @@ const INITIAL_MESSAGE: ChatMessage = {
   timestamp: new Date(),
 };
 
+const GOAL_STORAGE_KEY = "walk_goal_steps";
+const RECENT_3DAY_STEPS = [4880, 5720, 3247];
+
+function readGoalFromStorage(): number {
+  if (typeof window === "undefined") return 5000;
+  const raw = window.localStorage.getItem(GOAL_STORAGE_KEY);
+  const parsed = raw ? Number(raw) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : 5000;
+}
+
+function saveGoalToStorage(goal: number) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(GOAL_STORAGE_KEY, String(Math.round(goal)));
+}
+
 const ChatPage = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [goalSteps, setGoalSteps] = useState<number>(() => readGoalFromStorage());
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,6 +58,49 @@ const ChatPage = () => {
     const historyAfterUser = [...messages, userMsg];
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+
+    // 걸음 목표 관련 질의는 앱 규칙으로 우선 처리:
+    // - "최근 3일 평균" 요청 시 자동 계산/저장
+    // - 숫자 입력 시 해당 수치로 목표 즉시 변경
+    const lower = text.trim().toLowerCase();
+    const asksGoal = /목표|업데이트|변경|바꿔|설정/.test(lower);
+    if (asksGoal) {
+      const avg3 =
+        Math.round(RECENT_3DAY_STEPS.reduce((sum, v) => sum + v, 0) / RECENT_3DAY_STEPS.length / 10) * 10;
+      const numberMatch = text.replace(/,/g, "").match(/(\d{3,6})/);
+      const requested = numberMatch ? Number(numberMatch[1]) : NaN;
+
+      let goalReply: string;
+      if (/평균|최근 3일|자동/.test(lower)) {
+        setGoalSteps(avg3);
+        saveGoalToStorage(avg3);
+        goalReply = `최근 3일 걸음 평균(${avg3.toLocaleString()}보)으로 목표를 변경했어요.\n\n현재 목표: ${avg3.toLocaleString()}보`;
+      } else if (Number.isFinite(requested) && requested >= 1000 && requested <= 50000) {
+        const nextGoal = Math.round(requested);
+        setGoalSteps(nextGoal);
+        saveGoalToStorage(nextGoal);
+        goalReply = `요청하신 대로 걸음 목표를 ${nextGoal.toLocaleString()}보로 변경했어요.`;
+      } else {
+        goalReply = [
+          `현재 목표: ${goalSteps.toLocaleString()}보`,
+          `최근 3일 평균: ${avg3.toLocaleString()}보`,
+          "",
+          "원하는 방식으로 답장해 주세요:",
+          `1) "평균으로 바꿔줘" (최근 3일 평균 적용)`,
+          `2) "7000보로 변경" (원하는 수치 직접 입력)`,
+        ].join("\n");
+      }
+
+      const botMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: goalReply,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, botMsg]);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
