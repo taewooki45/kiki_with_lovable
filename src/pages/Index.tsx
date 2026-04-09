@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import MapView from "@/components/MapView";
 import StepCounter from "@/components/StepCounter";
 import StockInfoSheet from "@/components/StockInfoSheet";
@@ -65,6 +65,17 @@ const Index = () => {
     stocksRef.current = stocks;
   }, [stocks]);
 
+  /** 종목 목록이 바뀔 때만 재조회 (시세 갱신으로 stocks가 바뀌어 무한 루프 나지 않음) */
+  const stockTickerKey = useMemo(
+    () =>
+      stocks
+        .map((s) => s.ticker)
+        .filter((t) => /^\d{6}$/.test(t))
+        .sort()
+        .join(","),
+    [stocks],
+  );
+
   useEffect(() => {
     let canceled = false;
     let timer: ReturnType<typeof setInterval> | undefined;
@@ -96,14 +107,41 @@ const Index = () => {
       }
     };
 
+    /** 지도 종목이 로드된 직후에도 바로 시세 요청 */
     void refreshQuotes();
-    timer = setInterval(refreshQuotes, 30000);
+    timer = setInterval(refreshQuotes, 12_000);
 
     return () => {
       canceled = true;
       if (timer) clearInterval(timer);
     };
-  }, []);
+  }, [stockTickerKey]);
+
+  /** 바텀시트를 열 때 해당 종목 시세를 즉시 한 번 더 받음 */
+  useEffect(() => {
+    if (!selectedStock) return;
+    const ticker = selectedStock.ticker;
+    if (!/^\d{6}$/.test(ticker)) return;
+    const id = selectedStock.id;
+    let canceled = false;
+    (async () => {
+      try {
+        const quotes = await fetchYahooQuotes([ticker]);
+        if (canceled || quotes.length === 0) return;
+        const q = quotes[0];
+        setStocks((prev) =>
+          prev.map((s) =>
+            s.id === id ? { ...s, price: Math.round(q.price), changePercent: q.changePercent } : s,
+          ),
+        );
+      } catch {
+        /* 시세 일시 오류 */
+      }
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, [selectedStock?.id]);
 
   useEffect(() => {
     if (!selectedStock) return;

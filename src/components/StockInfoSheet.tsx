@@ -13,8 +13,9 @@ const StockInfoSheet = ({ stock, onClose, cashBalance }: StockInfoSheetProps) =>
   if (!stock) return null;
 
   const isUp = stock.changePercent >= 0;
-  const canBuy = cashBalance >= stock.price;
-  const affordableShares = stock.price > 0 ? cashBalance / stock.price : 0;
+  const hasPrice = stock.price > 0;
+  const canBuy = hasPrice && cashBalance >= stock.price;
+  const affordableShares = hasPrice ? cashBalance / stock.price : 0;
 
   return (
     <div className="animate-fade-in fixed inset-0 z-[1400]" data-testid="stock-info-sheet">
@@ -47,17 +48,24 @@ const StockInfoSheet = ({ stock, onClose, cashBalance }: StockInfoSheetProps) =>
             <Button
               size="sm"
               className="h-auto max-w-[9.5rem] shrink-0 rounded-xl px-2.5 py-2 text-xs font-bold shadow-sm sm:max-w-none sm:px-3 sm:text-sm"
-              disabled={!canBuy}
+              disabled={!hasPrice || !canBuy}
               data-testid="buy-stock-button"
               aria-label={
-                canBuy
-                  ? `${stock.name} 캐시로 매수 (${stock.price.toLocaleString()}원)`
-                  : `보유 ${cashBalance.toLocaleString()}원, 구매 가능 ${affordableShares.toFixed(4)}주`
+                !hasPrice
+                  ? "시세 확인 후 매수 가능"
+                  : canBuy
+                    ? `${stock.name} 캐시로 매수 (${stock.price.toLocaleString()}원)`
+                    : `보유 ${cashBalance.toLocaleString()}원, 구매 가능 ${affordableShares.toFixed(4)}주`
               }
             >
               <ShoppingCart className="mr-1 h-4 w-4 shrink-0 sm:mr-1.5 sm:h-4 sm:w-4" />
               <span className="flex min-w-0 flex-col items-start gap-0.5 text-left leading-tight">
-                {canBuy ? (
+                {!hasPrice ? (
+                  <>
+                    <span>매수하기</span>
+                    <span className="text-[10px] font-normal opacity-90 sm:text-xs">시세 확인 중</span>
+                  </>
+                ) : canBuy ? (
                   <>
                     <span>매수하기</span>
                     <span className="text-[10px] font-normal opacity-90 sm:text-xs">
@@ -87,22 +95,24 @@ const StockInfoSheet = ({ stock, onClose, cashBalance }: StockInfoSheetProps) =>
           </div>
         </div>
 
-        {/* Price */}
+        {/* Price — Index에서 Yahoo 시세 폴링·시트 오픈 시 즉시 갱신 */}
         <div className="mb-4 rounded-xl bg-muted/50 p-4">
           <p className="mb-1 text-sm text-muted-foreground">현재가</p>
-          <div className="flex items-baseline gap-2">
+          <div className="flex flex-wrap items-baseline gap-2">
             <span className="text-2xl font-bold text-foreground">
-              {stock.price.toLocaleString()}원
+              {stock.price > 0 ? `${stock.price.toLocaleString()}원` : "시세 불러오는 중…"}
             </span>
-            <span
-              className={`flex items-center gap-1 text-sm font-semibold ${
-                isUp ? "text-destructive" : "text-accent"
-              }`}
-            >
-              {isUp ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-              {isUp ? "+" : ""}
-              {stock.changePercent}%
-            </span>
+            {stock.price > 0 && (
+              <span
+                className={`flex items-center gap-1 text-sm font-semibold ${
+                  isUp ? "text-destructive" : "text-accent"
+                }`}
+              >
+                {isUp ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                {isUp ? "+" : ""}
+                {Number.isFinite(stock.changePercent) ? stock.changePercent.toFixed(2) : "0.00"}%
+              </span>
+            )}
           </div>
         </div>
 
