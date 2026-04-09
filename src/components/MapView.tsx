@@ -109,6 +109,17 @@ function InvalidateWhenStocksChange({ count }: { count: number }) {
   return null;
 }
 
+function distanceMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 6371000;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const p =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.atan2(Math.sqrt(p), Math.sqrt(1 - p));
+}
+
 const MapView = ({
   center,
   radius,
@@ -217,11 +228,13 @@ const MapView = ({
         {stocks.map((stock) => {
           const tickerKey = normalizeKrxTickerKey(stock.ticker);
           const isOwned = tickerKey ? ownedTickerSet?.has(tickerKey) ?? false : false;
+          const isOutOfRadius = distanceMeters(center.lat, center.lng, stock.lat, stock.lng) > radius;
           return (
             <StockPinMarker
               key={stock.id}
               stock={stock}
               isOwned={isOwned}
+              isOutOfRadius={isOutOfRadius}
               onSelect={onSelectStock}
             />
           );

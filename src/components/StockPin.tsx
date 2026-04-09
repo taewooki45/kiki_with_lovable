@@ -6,6 +6,8 @@ interface StockPinProps {
   stock: StockPinType;
   /** 사용자 보유 종목이면 핀 색상을 다르게 표시 */
   isOwned?: boolean;
+  /** 지도 중심 반경 밖이면 회색으로 표시 */
+  isOutOfRadius?: boolean;
   onSelect: (stock: StockPinType) => void;
 }
 
@@ -77,11 +79,13 @@ function logoOrSectorInner(stock: StockPinType, color: string): string {
   return sectorIconInner(stock.sector, color);
 }
 
-const createPinIcon = (stock: StockPinType, isOwned: boolean) => {
+const createPinIcon = (stock: StockPinType, isOwned: boolean, isOutOfRadius: boolean) => {
   /** 보유 종목은 초록 계열, 일반은 기존 주황 계열 */
-  const color = isOwned
-    ? (stock.isSponsored ? "hsl(145, 66%, 40%)" : "hsl(145, 60%, 45%)")
-    : (stock.isSponsored ? "hsl(12, 78%, 57%)" : "hsl(12, 65%, 65%)");
+  const color = isOutOfRadius
+    ? (stock.isSponsored ? "hsl(0, 0%, 58%)" : "hsl(0, 0%, 68%)")
+    : isOwned
+      ? (stock.isSponsored ? "hsl(145, 66%, 40%)" : "hsl(145, 60%, 45%)")
+      : (stock.isSponsored ? "hsl(12, 78%, 57%)" : "hsl(12, 65%, 65%)");
   const inner = logoOrSectorInner(stock, color);
 
   return L.divIcon({
@@ -99,11 +103,11 @@ const createPinIcon = (stock: StockPinType, isOwned: boolean) => {
   });
 };
 
-const StockPinMarker = ({ stock, isOwned = false, onSelect }: StockPinProps) => {
+const StockPinMarker = ({ stock, isOwned = false, isOutOfRadius = false, onSelect }: StockPinProps) => {
   return (
     <Marker
       position={[stock.lat, stock.lng]}
-      icon={createPinIcon(stock, isOwned)}
+      icon={createPinIcon(stock, isOwned, isOutOfRadius)}
       eventHandlers={{
         click: () => onSelect(stock),
       }}
