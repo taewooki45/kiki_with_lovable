@@ -16,6 +16,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserData } from "@/hooks/useUserData";
 
+/** 조회는 넓게(회색 핀 확보), 강조 원은 DEFAULT_RADIUS_M 유지 */
+const MAP_QUERY_RADIUS_M = DEFAULT_RADIUS_M * 3;
+
 const Index = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -55,7 +58,7 @@ const Index = () => {
     let aborted = false;
     const loadNearby = async () => {
       try {
-        const data = await fetchNearbyCompanies(center, DEFAULT_RADIUS_M);
+        const data = await fetchNearbyCompanies(center, MAP_QUERY_RADIUS_M);
         if (aborted) return;
         setStocks(data);
       } catch {
