@@ -15,7 +15,8 @@
     "cap:open:android": "cap open android",
     "cap:open:ios": "cap open ios",
     "android": "npm run build && cap sync && cap open android",
-    "ios": "npm run build && cap sync && cap open ios"
+    "ios": "npm run build && cap sync && cap open ios",
+    "companies:sync": "node scripts/run-companies-sync.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",

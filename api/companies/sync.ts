@@ -107,8 +107,12 @@ function toCompany(stationName: "서울숲역" | "여의도역", el: OverpassEle
   };
 }
 
-async function crawlCompaniesAroundStations(): Promise<CrawledCompany[]> {
-  const allResults = await Promise.all(
+async function crawlCompaniesAroundStations(): Promise<{
+  companies: CrawledCompany[];
+  overpassElementsTotal: number;
+  matchedListedBeforeDedup: number;
+}> {
+  const perStation = await Promise.all(
     STATIONS.map(async (station) => {
       try {
         const query = `
@@ -148,20 +152,34 @@ out center;
 
         const json = (await response.json()) as { elements?: OverpassElement[] };
         const elements = Array.isArray(json.elements) ? json.elements : [];
-        return elements
+        const companies = elements
           .map((el) => toCompany(station.name, el))
           .filter((v): v is CrawledCompany => v != null);
+        return { elementCount: elements.length, companies };
       } catch (e) {
         // 외부 크롤링 API가 일부 역에서 실패해도 전체 동기화는 계속 진행
         console.warn("[sync] station crawl failed:", station.name, e);
-        return [];
+        return { elementCount: 0, companies: [] as CrawledCompany[] };
       }
     }),
   );
 
+  let overpassElementsTotal = 0;
+  let matchedListedBeforeDedup = 0;
+  const flat: CrawledCompany[] = [];
+  for (const p of perStation) {
+    overpassElementsTotal += p.elementCount;
+    matchedListedBeforeDedup += p.companies.length;
+    flat.push(...p.companies);
+  }
+
   const dedup = new Map<string, CrawledCompany>();
-  for (const row of allResults.flat()) dedup.set(row.source_place_id, row);
-  return Array.from(dedup.values());
+  for (const row of flat) dedup.set(row.source_place_id, row);
+  return {
+    companies: Array.from(dedup.values()),
+    overpassElementsTotal,
+    matchedListedBeforeDedup,
+  };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -196,7 +214,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const companies = await crawlCompaniesAroundStations();
+    const { companies, overpassElementsTotal, matchedListedBeforeDedup } = await crawlCompaniesAroundStations();
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const payload = companies.map((c) => ({
@@ -223,19 +241,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     /** 예전에 ticker 없이 쌓인 행·이번 크롤에서 놓친 행 보정 */
-    let tickerRepair = { scanned: 0, updated: 0, skipped: 0 };
+    let tickerRepair = { scanned: 0, updated: 0, skipped: 0, updateErrors: 0 };
     try {
       tickerRepair = await repairEmptyTickers(supabase);
     } catch (repairErr) {
       console.warn("[sync] tickerRepair:", repairErr);
     }
 
+    const crawlStats = {
+      /** Overpass가 돌려준 원시 요소 수(두 역 합) — 0이면 Overpass 실패·차단 가능 */
+      overpassElementsTotal,
+      /** KRX 규칙에 걸린 POI 수(중복 제거 전) */
+      matchedListedBeforeDedup,
+      /** upsert 행 수(중복 제거 후, 곧 ticker 있는 행) */
+      upsertedAfterDedup: payload.length,
+    };
+
     res.status(200).json({
       ok: true,
       upsertedCount: payload.length,
       stations: ["서울숲역", "여의도역"],
       radiusM: 1000,
+      crawlStats,
       tickerRepair,
+      hint:
+        overpassElementsTotal === 0
+          ? "Overpass에서 요소가 0입니다. 네트워크·API 제한을 확인하세요."
+          : matchedListedBeforeDedup === 0
+            ? "OSM 이름이 krxListedMatch 규칙과 맞는 POI가 없습니다. RULES 확장 또는 다른 역 반경을 검토하세요."
+            : payload.length === 0
+              ? "매칭은 됐으나 중복 제거 후 0건입니다(비정상)."
+              : undefined,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown error";

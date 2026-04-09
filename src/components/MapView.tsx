@@ -82,7 +82,7 @@ const MapView = ({
         <InvalidateWhenStocksChange count={stocks.length} />
         <RecenterMap lat={center.lat} lng={center.lng} />
 
-        {/* 반경 표시 (앱 로직상 “내 주변”) */}
+        {/* 반경 표시 — interactive 끄면 path가 클릭·드래그를 가로채지 않음 */}
         <Circle
           center={[center.lat, center.lng]}
           radius={radius}
@@ -92,6 +92,7 @@ const MapView = ({
             fillOpacity: 0.08,
             weight: 2,
             dashArray: "6 4",
+            interactive: false,
           }}
         />
 
@@ -105,6 +106,7 @@ const MapView = ({
               fillColor: "hsl(217, 91%, 60%)",
               fillOpacity: 0.12,
               weight: 1,
+              interactive: false,
             }}
           />
         )}
@@ -119,6 +121,7 @@ const MapView = ({
               fillColor: "hsl(217, 91%, 55%)",
               fillOpacity: 1,
               weight: 3,
+              interactive: false,
             }}
           />
         )}
