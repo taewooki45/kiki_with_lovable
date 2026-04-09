@@ -42,6 +42,16 @@ function MapInvalidateSize() {
   return null;
 }
 
+/** 마커 데이터가 늦게 들어올 때 타일/마커 레이어 재계산 */
+function InvalidateWhenStocksChange({ count }: { count: number }) {
+  const map = useMap();
+  useEffect(() => {
+    const t = window.setTimeout(() => map.invalidateSize({ animate: false }), 50);
+    return () => window.clearTimeout(t);
+  }, [count, map]);
+  return null;
+}
+
 const MapView = ({
   center,
   radius,
@@ -69,6 +79,7 @@ const MapView = ({
           maxZoom={20}
         />
         <MapInvalidateSize />
+        <InvalidateWhenStocksChange count={stocks.length} />
         <RecenterMap lat={center.lat} lng={center.lng} />
 
         {/* 반경 표시 (앱 로직상 “내 주변”) */}

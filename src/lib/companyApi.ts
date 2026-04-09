@@ -1,4 +1,6 @@
 import type { StockPin } from "@/types/stock";
+import { fetchNearbyCompaniesFromSupabase } from "@/lib/nearbyCompanies";
+import { isSupabaseConfigured } from "@/lib/supabaseClient";
 
 interface NearbyApiCompany extends StockPin {
   distanceM?: number;
@@ -9,6 +11,10 @@ interface NearbyApiResponse {
   companies: NearbyApiCompany[];
 }
 
+/**
+ * 주변 상장 매칭 POI. 우선 Vercel `/api/companies/nearby`, 실패 시 브라우저에서 Supabase 직접 조회.
+ * (로컬 `vite`만 켜면 /api 가 없어 빈 지도가 되는 문제 완화)
+ */
 export async function fetchNearbyCompanies(
   center: { lat: number; lng: number },
   radius = 1000,
@@ -19,12 +25,19 @@ export async function fetchNearbyCompanies(
     radius: String(radius),
   });
 
-  const response = await fetch(`/api/companies/nearby?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error(`Failed to load nearby companies (${response.status})`);
+  try {
+    const response = await fetch(`/api/companies/nearby?${params.toString()}`);
+    if (response.ok) {
+      const json = (await response.json()) as NearbyApiResponse;
+      return Array.isArray(json.companies) ? json.companies : [];
+    }
+  } catch {
+    /* /api 없음(로컬 Vite)·네트워크 오류 */
   }
 
-  const json = (await response.json()) as NearbyApiResponse;
-  if (!json || !Array.isArray(json.companies)) return [];
-  return json.companies;
+  if (isSupabaseConfigured()) {
+    return fetchNearbyCompaniesFromSupabase(center, radius);
+  }
+
+  return [];
 }
