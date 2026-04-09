@@ -240,7 +240,11 @@ const StockInfoSheet = ({ stock, onClose, cashBalance, isScrapped, onToggleScrap
           <p className="text-sm text-muted-foreground">{stock.description}</p>
         </div>
 
-        <StockSheetChat stock={{ ...stock, price, changePercent: changePct }} />
+        <StockSheetChat
+          stock={{ ...stock, price, changePercent: changePct }}
+          isScrapped={isScrapped}
+          onToggleScrap={onToggleScrap}
+        />
         </div>
       </div>
     </div>

@@ -22,9 +22,26 @@ function buildWelcomeMessage(stock: StockPin): ChatMessage {
 
 interface StockSheetChatProps {
   stock: StockPin;
+  isScrapped: boolean;
+  onToggleScrap: () => void;
 }
 
-export default function StockSheetChat({ stock }: StockSheetChatProps) {
+/**
+ * 사용자의 자연어에서 "스크랩 추가/해제/상태 확인" 의도를 간단 규칙으로 먼저 처리합니다.
+ * - 장점: OpenAI 호출 전 로컬에서 즉시 반응 가능
+ * - 목적: "이 종목 스크랩 목록에 추가해줘" 같은 요청을 항상 동작시키기 위함
+ */
+function detectScrapIntent(text: string): "add" | "remove" | "status" | null {
+  const t = text.toLowerCase().replace(/\s+/g, "");
+  const asksScrap = /스크랩|북마크|찜|관심/.test(t);
+  if (!asksScrap) return null;
+
+  if (/추가|저장|담아|등록|해줘|넣어/.test(t)) return "add";
+  if (/해제|삭제|빼|제거|취소/.test(t)) return "remove";
+  return "status";
+}
+
+export default function StockSheetChat({ stock, isScrapped, onToggleScrap }: StockSheetChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => [buildWelcomeMessage(stock)]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +70,43 @@ export default function StockSheetChat({ stock }: StockSheetChatProps) {
     const historyAfterUser = [...messages, userMsg];
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+
+    /** 스크랩 명령은 OpenAI 호출 없이 우선 처리 */
+    const scrapIntent = detectScrapIntent(trimmed);
+    if (scrapIntent) {
+      let reply = "";
+      if (scrapIntent === "add") {
+        if (isScrapped) {
+          reply = `이미 ${stock.name}(${stock.ticker})은(는) 스크랩 목록에 있어요.`;
+        } else {
+          onToggleScrap();
+          reply = `${stock.name}(${stock.ticker})을(를) 스크랩 목록에 추가했어요.`;
+        }
+      } else if (scrapIntent === "remove") {
+        if (isScrapped) {
+          onToggleScrap();
+          reply = `${stock.name}(${stock.ticker}) 스크랩을 해제했어요.`;
+        } else {
+          reply = `현재 ${stock.name}(${stock.ticker})은(는) 스크랩 목록에 없어요.`;
+        }
+      } else {
+        reply = isScrapped
+          ? `${stock.name}(${stock.ticker})은(는) 현재 스크랩되어 있어요.`
+          : `${stock.name}(${stock.ticker})은(는) 아직 스크랩되지 않았어요.`;
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `a-${Date.now()}`,
+          role: "assistant",
+          content: reply,
+          timestamp: new Date(),
+        },
+      ]);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
