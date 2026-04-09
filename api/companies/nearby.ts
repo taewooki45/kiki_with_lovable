@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { getSupabaseUrlAndAnonKey } from "../supabasePublicEnv";
+import { getSupabaseUrlAndAnonKey } from "../supabasePublicEnv.js";
 
 function normalizeKrxTicker(raw: string | null | undefined): string | null {
   if (raw == null) return null;
@@ -141,7 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   /** api/ 내부 모듈만 동적 로드 — ../../src 동적 import 는 Vercel에서 모듈 해석 실패로 500 날 수 있음 */
   let resolveListedFromDbRow: ((row: DbCompanyRow) => ListedLite | null) | null = null;
   try {
-    const poi = await import("./poiResolveListedRow");
+    const poi = await import("./poiResolveListedRow.js");
     resolveListedFromDbRow = (row: DbCompanyRow) => poi.resolveListedFromDbRow(row);
   } catch (e) {
     console.warn("[api/companies/nearby] poiResolveListedRow import failed, DB ticker column only", e);

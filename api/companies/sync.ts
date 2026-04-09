@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { resolveListedKrx } from "./krxListedMatch";
-import { repairEmptyTickers } from "./tickerRepair";
+import { resolveListedKrx } from "./krxListedMatch.js";
+import { repairEmptyTickers } from "./tickerRepair.js";
 
 interface CrawledCompany {
   source_place_id: string;

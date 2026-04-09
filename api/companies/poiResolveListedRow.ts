@@ -2,7 +2,7 @@
  * 서버(api/*) 전용 — 동적 import 경로가 api/ 아래에만 있어 Vercel 번들에서 안정적입니다.
  * 브라우저는 @/lib/poiTickerResolve 가 여기를 re-export 합니다.
  */
-import { resolveListedKrx } from "./krxListedMatch";
+import { resolveListedKrx } from "./krxListedMatch.js";
 
 export interface DbRowForTicker {
   source_place_id: string;

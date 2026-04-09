@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   resolveListedFromDbRow,
   type DbRowForTicker,
-} from "../../src/lib/poiTickerResolve";
+} from "../../src/lib/poiTickerResolve.js";
 
 export type { DbRowForTicker };
 export { resolveListedFromDbRow };

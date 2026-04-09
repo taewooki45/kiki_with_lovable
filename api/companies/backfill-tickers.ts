@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { repairEmptyTickers } from "./tickerRepair";
+import { repairEmptyTickers } from "./tickerRepair.js";
 
 /**
  * DB에 ticker가 비어 있는 nearby_companies 행을 name·map_display_name·description 기준으로 채움.

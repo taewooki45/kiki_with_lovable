@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const yahoo = await import("./yahooKrxQuotesCore");
+    const yahoo = await import("./yahooKrxQuotesCore.js");
     const raw = String(req.query.tickers ?? "");
     const uniqTickers = yahoo.parseTickersQuery(raw);
     if (uniqTickers.length === 0) {
