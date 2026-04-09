@@ -13,6 +13,8 @@ interface CrawledCompany {
   source_station: "서울숲역" | "여의도역";
   /** KRX 6자리 — 상장 종목으로 식별된 경우만 수집 */
   ticker: string;
+  /** 상장 법인 정식명 (예: BGF리테일) */
+  stock_name: string;
   /** 지도 표시명 (예: CU BGF리테일) */
   map_display_name: string;
 }
@@ -84,6 +86,7 @@ function toCompany(stationName: "서울숲역" | "여의도역", el: OverpassEle
     description: toDescription(tags, stationName),
     source_station: stationName,
     ticker: listed.ticker,
+    stock_name: listed.stockName,
     map_display_name: listed.mapDisplayName,
   };
 }
@@ -189,6 +192,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       description: c.description,
       source_station: c.source_station,
       ticker: c.ticker,
+      stock_name: c.stock_name,
       map_display_name: c.map_display_name,
       updated_at: new Date().toISOString(),
     }));

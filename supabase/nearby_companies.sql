@@ -10,6 +10,8 @@ create table if not exists public.nearby_companies (
   source_station text,
   -- KRX 6자리 (상장 종목으로 매칭된 경우만 sync 시 채움)
   ticker text,
+  -- 상장 법인 정식명 (예: BGF리테일) — 시트·시세 표시용
+  stock_name text,
   -- 지도 마커 표시명 (예: CU BGF리테일)
   map_display_name text,
   updated_at timestamptz not null default now()

@@ -3,4 +3,7 @@ alter table public.nearby_companies
   add column if not exists ticker text;
 
 alter table public.nearby_companies
+  add column if not exists stock_name text;
+
+alter table public.nearby_companies
   add column if not exists map_display_name text;

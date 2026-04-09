@@ -10,6 +10,7 @@ interface DbCompanyRow {
   description: string | null;
   source_station: string | null;
   ticker: string | null;
+  stock_name: string | null;
   map_display_name: string | null;
 }
 
@@ -61,7 +62,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { data, error } = await supabase
       .from("nearby_companies")
-      .select("source_place_id,name,lat,lng,sector,description,source_station,ticker,map_display_name")
+      .select(
+        "source_place_id,name,lat,lng,sector,description,source_station,ticker,stock_name,map_display_name",
+      )
       .not("ticker", "is", null)
       .gte("lat", lat - latPad)
       .lte("lat", lat + latPad)
@@ -80,7 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .map((row) => ({
         id: row.source_place_id,
         ticker: String(row.ticker).trim(),
-        name: (row.map_display_name ?? row.name).trim(),
+        name: (row.stock_name ?? row.map_display_name ?? row.name).trim(),
         lat: row.lat,
         lng: row.lng,
         sector: row.sector ?? "기타",

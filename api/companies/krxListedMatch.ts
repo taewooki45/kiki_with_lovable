@@ -5,7 +5,9 @@
 
 export type ListedResolve = {
   ticker: string;
-  /** 지도 마커·팝업에 표시할 이름 */
+  /** KRX 상장 법인 정식명 (예: BGF리테일) — 시트·시세 매칭용 */
+  stockName: string;
+  /** 지도 마커·간판 느낌 표시 (예: CU BGF리테일) */
   mapDisplayName: string;
   /** 업종 힌트 (없으면 OSM 추론 유지) */
   sector?: string;
@@ -428,6 +430,7 @@ export function resolveListedKrx(
 
   return {
     ticker: best.rule.ticker,
+    stockName: best.rule.defaultLabel,
     mapDisplayName,
     sector: best.rule.sector,
   };
