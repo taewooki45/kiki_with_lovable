@@ -4,9 +4,12 @@ import { createClient } from "@supabase/supabase-js";
 function normalizeKrxTicker(raw: string | null | undefined): string | null {
   if (raw == null) return null;
   const s = String(raw).trim();
-  if (!/^\d+$/.test(s)) return null;
-  if (s.length > 6) return null;
-  return s.padStart(6, "0");
+  if (!s) return null;
+  if (/^\d+$/.test(s) && s.length <= 6) return s.padStart(6, "0");
+  const digits = s.replace(/\D/g, "");
+  if (digits.length >= 4 && digits.length <= 6) return digits.padStart(6, "0");
+  if (digits.length > 6) return digits.slice(-6);
+  return null;
 }
 
 interface DbCompanyRow {
@@ -107,12 +110,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           "source_place_id,name,lat,lng,sector,description,source_station,ticker,stock_name,map_display_name",
         )
         .not("ticker", "is", null)
+        .neq("ticker", "")
         .gte("lat", lat - latPad)
         .lte("lat", lat + latPad)
         .gte("lng", lng - lngPad)
         .lte("lng", lng + lngPad)
         .limit(500);
     };
+
+    /** 서울숲역↔여의도역(~12km)처럼 bbox가 서로를 못 잡는 경우 대비 — 넓은 바운딩 */
+    const SEOUL_METRO_BBOX_M = 22000;
+    /** 수도권 밖 GPS여도 DB에 행이 있으면 가까운 순으로 표시 (km) */
+    const GLOBAL_MAX_KM = 200;
 
     let bboxRadius = Math.max(radius, 800);
     let { data, error } = await fetchInBbox(bboxRadius);
@@ -125,13 +134,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let rows = (data ?? []) as DbCompanyRow[];
     let filtered = mapRowsToCompanies(rows, lat, lng, radius);
 
-    // 1차 반경에 없으면 바운딩·거리를 넓혀 재시도 (크롤 1km 밖 가장자리·GPS 오차 대비)
+    // 2차: 수도권 단일 크롤 구역 간 거리까지 포함
     if (filtered.length === 0) {
-      const wide = Math.min(Math.max(radius * 3, 2500), 6000);
+      const wide = Math.min(Math.max(radius * 3, SEOUL_METRO_BBOX_M), 28000);
       const second = await fetchInBbox(wide);
       if (!second.error && second.data?.length) {
         rows = second.data as DbCompanyRow[];
         filtered = mapRowsToCompanies(rows, lat, lng, wide);
+      }
+    }
+
+    // 3차: bbox에 한 건도 안 잡히면(다른 지역 GPS 등) ticker 있는 전체에서 거리순 상한
+    if (filtered.length === 0) {
+      const { data: allRows, error: allErr } = await supabase
+        .from("nearby_companies")
+        .select(
+          "source_place_id,name,lat,lng,sector,description,source_station,ticker,stock_name,map_display_name",
+        )
+        .not("ticker", "is", null)
+        .neq("ticker", "")
+        .limit(2000);
+
+      if (!allErr && allRows?.length) {
+        let capped = mapRowsToCompanies(allRows as DbCompanyRow[], lat, lng, GLOBAL_MAX_KM * 1000);
+        if (capped.length === 0) {
+          capped = mapRowsToCompanies(allRows as DbCompanyRow[], lat, lng, Number.POSITIVE_INFINITY);
+        }
+        filtered = capped.slice(0, 80);
       }
     }
 

@@ -29,12 +29,14 @@ export async function fetchNearbyCompanies(
     const response = await fetch(`/api/companies/nearby?${params.toString()}`);
     if (response.ok) {
       const json = (await response.json()) as NearbyApiResponse;
-      return Array.isArray(json.companies) ? json.companies : [];
+      const list = Array.isArray(json.companies) ? json.companies : [];
+      if (list.length > 0) return list;
     }
   } catch {
     /* /api 없음(로컬 Vite)·네트워크 오류 */
   }
 
+  /** API가 200이지만 빈 배열이면(구버전 배포 등) Supabase 직접 조회로 한 번 더 */
   if (isSupabaseConfigured()) {
     return fetchNearbyCompaniesFromSupabase(center, radius);
   }

@@ -1,13 +1,16 @@
 import { supabase } from "@/lib/supabaseClient";
 import type { StockPin } from "@/types/stock";
 
-/** KRX 6자리로 정규화 (DB에 앞자리 0 누락된 경우 대비) */
+/** KRX 6자리로 정규화 (DB에 앞자리 0 누락·문자 섞인 경우 대비) */
 export function normalizeKrxTicker(raw: string | null | undefined): string | null {
   if (raw == null) return null;
   const s = String(raw).trim();
-  if (!/^\d+$/.test(s)) return null;
-  if (s.length > 6) return null;
-  return s.padStart(6, "0");
+  if (!s) return null;
+  if (/^\d+$/.test(s) && s.length <= 6) return s.padStart(6, "0");
+  const digits = s.replace(/\D/g, "");
+  if (digits.length >= 4 && digits.length <= 6) return digits.padStart(6, "0");
+  if (digits.length > 6) return digits.slice(-6);
+  return null;
 }
 
 function distanceMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
@@ -36,7 +39,7 @@ interface DbRow {
 
 /**
  * 브라우저에서 Supabase anon으로 직접 조회 (로컬 dev에 /api 없을 때 등).
- * 서버의 /api/companies/nearby 와 동일한 필터·정렬.
+ * api/companies/nearby.ts 와 동일한 단계별 폴백.
  */
 export async function fetchNearbyCompaniesFromSupabase(
   center: { lat: number; lng: number },
@@ -47,6 +50,9 @@ export async function fetchNearbyCompaniesFromSupabase(
   const lat = center.lat;
   const lng = center.lng;
 
+  const SEOUL_METRO_BBOX_M = 22000;
+  const GLOBAL_MAX_KM = 200;
+
   const fetchBbox = async (bboxM: number) => {
     const latPad = bboxM / 111320;
     const lngPad = bboxM / (111320 * Math.cos((lat * Math.PI) / 180));
@@ -56,6 +62,7 @@ export async function fetchNearbyCompaniesFromSupabase(
         "source_place_id,name,lat,lng,sector,description,source_station,ticker,stock_name,map_display_name",
       )
       .not("ticker", "is", null)
+      .neq("ticker", "")
       .gte("lat", lat - latPad)
       .lte("lat", lat + latPad)
       .gte("lng", lng - lngPad)
@@ -102,11 +109,31 @@ export async function fetchNearbyCompaniesFromSupabase(
   let pins = rowsToPins(rows, radiusM);
 
   if (pins.length === 0) {
-    const wide = Math.min(Math.max(radiusM * 3, 2500), 6000);
+    const wide = Math.min(Math.max(radiusM * 3, SEOUL_METRO_BBOX_M), 28000);
     const second = await fetchBbox(wide);
     if (!second.error && second.data?.length) {
       rows = second.data as DbRow[];
       pins = rowsToPins(rows, wide);
+    }
+  }
+
+  if (pins.length === 0) {
+    const { data: allRows, error: allErr } = await supabase
+      .from("nearby_companies")
+      .select(
+        "source_place_id,name,lat,lng,sector,description,source_station,ticker,stock_name,map_display_name",
+      )
+      .not("ticker", "is", null)
+      .neq("ticker", "")
+      .limit(2000);
+
+    if (!allErr && allRows?.length) {
+      const r = allRows as DbRow[];
+      let mapped = rowsToPins(r, GLOBAL_MAX_KM * 1000);
+      if (mapped.length === 0) {
+        mapped = rowsToPins(r, Number.POSITIVE_INFINITY);
+      }
+      pins = mapped.slice(0, 80);
     }
   }
 
