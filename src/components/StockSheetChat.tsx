@@ -48,10 +48,15 @@ export default function StockSheetChat({ stock, isScrapped, onToggleScrap }: Sto
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    /**
+     * 기록 초기화는 "다른 종목으로 바뀔 때"만 수행.
+     * 시세 갱신(price/changePercent)으로 stock 객체가 새로 만들어져도
+     * 동일 종목이면 대화 기록을 유지해야 함.
+     */
     setMessages([buildWelcomeMessage(stock)]);
     setInput("");
     setIsLoading(false);
-  }, [stock]);
+  }, [stock.id, stock.ticker]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
