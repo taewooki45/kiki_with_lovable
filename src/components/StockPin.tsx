@@ -44,6 +44,11 @@ function sectorIconInner(sector: string, color: string): string {
       return g(
         `<path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-4h6v4"/><path d="M10 11h4"/>`
       );
+    case "유통":
+      // 쇼핑백 + 손잡이 (편의점/리테일 느낌)
+      return g(
+        `<rect x="5" y="8" width="14" height="12" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/><path d="M10 13h4"/><path d="M12 11v4"/>`
+      );
     case "건설":
       return g(`<path d="m3 21 9-9 9 9"/><path d="M9 21v-6a3 3 0 0 1 6 0v6"/><path d="M12 3v4"/>`);
     case "지주":
