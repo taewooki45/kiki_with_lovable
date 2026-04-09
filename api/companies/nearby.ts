@@ -95,13 +95,23 @@ function mapRowsToCompanies(
     .sort((a, b) => a.distanceM - b.distanceM);
 }
 
+/** Vercel query: 단일 값·배열 모두 대응 */
+function firstQuery(v: string | string[] | undefined): string | undefined {
+  if (v == null) return undefined;
+  return Array.isArray(v) ? v[0] : v;
+}
+
 function sendJson(res: VercelResponse, status: number, body: unknown) {
   if (res.writableEnded) return;
-  res.statusCode = status;
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.setHeader("X-API-Nearby", "resilient-v1");
-  res.end(JSON.stringify(body));
+  try {
+    res.statusCode = status;
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("X-API-Nearby", "resilient-v2");
+    res.end(JSON.stringify(body));
+  } catch (endErr) {
+    console.error("[api/companies/nearby] sendJson failed", endErr);
+  }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -119,21 +129,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const lat = Number(req.query.lat);
-  const lng = Number(req.query.lng);
-  const radius = Number(req.query.radius ?? 1000);
+  const lat = Number(firstQuery(req.query.lat as string | string[] | undefined));
+  const lng = Number(firstQuery(req.query.lng as string | string[] | undefined));
+  let radius = Number(firstQuery(req.query.radius as string | string[] | undefined) ?? "1000");
+  if (!Number.isFinite(radius) || radius <= 0) radius = 1000;
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     sendJson(res, 400, { error: "lat/lng query required" });
     return;
   }
 
-  /** krxListedMatch 가 큰 번들 — 정적 import 시 Vercel 로드 실패로 500 이 날 수 있어 동적 로드 */
+  /** api/ 내부 모듈만 동적 로드 — ../../src 동적 import 는 Vercel에서 모듈 해석 실패로 500 날 수 있음 */
   let resolveListedFromDbRow: ((row: DbCompanyRow) => ListedLite | null) | null = null;
   try {
-    const poi = await import("../../src/lib/poiTickerResolve");
+    const poi = await import("./poiResolveListedRow");
     resolveListedFromDbRow = (row: DbCompanyRow) => poi.resolveListedFromDbRow(row);
   } catch (e) {
-    console.warn("[api/companies/nearby] poiTickerResolve import failed, DB ticker column only", e);
+    console.warn("[api/companies/nearby] poiResolveListedRow import failed, DB ticker column only", e);
   }
 
   const cfg = getSupabaseUrlAndAnonKey();
