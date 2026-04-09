@@ -25,6 +25,8 @@ interface MapViewProps {
 }
 
 const DEFAULT_MAP_ZOOM = 16;
+/** 「내 위치」 버튼 — 뷰포트 중심이 사용자 마커와 일치하도록 고정 줌으로 맞춤 */
+const USER_RECENTER_ZOOM = 17;
 
 /**
  * 첫 GPS 고정 시 1회 setView — 이후에는 사용자가 지도를 드래그해도 watch 좌표만 마커/원에 반영하고 뷰는 강제 이동하지 않음.
@@ -48,26 +50,29 @@ function InitialUserFit({
   return null;
 }
 
-/** 버튼으로 전달된 좌표로 이동 — `center` state 와 다른 타이밍에도 동작 */
+/**
+ * 버튼으로 전달된 좌표로 지도 **뷰포트 중심**을 이동 (마커가 화면 가운데 오도록).
+ * `lastTokenRef` 스킵 제거 — Strict Mode에서 rAF 취소로 이동이 누락되던 문제 방지.
+ * `setView`가 `flyTo`보다 중심 맞춤이 확실함.
+ */
 function FlyToExplicitTarget({ target }: { target: { lat: number; lng: number; token: number } | null }) {
   const map = useMap();
-  const lastTokenRef = useRef(0);
 
   useEffect(() => {
     if (!target) return;
-    if (target.token === lastTokenRef.current) return;
-    lastTokenRef.current = target.token;
 
-    const zoom = Math.max(map.getZoom(), 16);
     const latlng: L.LatLngExpression = [target.lat, target.lng];
+    const zoom = USER_RECENTER_ZOOM;
 
-    const fly = () => {
+    const apply = () => {
       map.invalidateSize({ animate: false });
-      map.flyTo(latlng, zoom, { duration: 0.72, animate: true });
+      map.setView(latlng, zoom, { animate: true });
     };
-    const id = requestAnimationFrame(fly);
-    return () => cancelAnimationFrame(id);
-  }, [target, map]);
+
+    apply();
+    const t = window.setTimeout(apply, 50);
+    return () => window.clearTimeout(t);
+  }, [target?.token, target?.lat, target?.lng, map]);
 
   return null;
 }

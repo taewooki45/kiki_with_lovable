@@ -21,12 +21,13 @@ const Index = () => {
   const { isAuthenticated } = useAuth();
   const [selectedStock, setSelectedStock] = useState<StockPin | null>(null);
   const [showTrending, setShowTrending] = useState(false);
-  /** 「내 위치」 버튼으로 받은 좌표로 지도 flyTo — token 으로 동일 좌표 재클릭도 반영 */
+  /** 「내 위치」 버튼 — 지도 뷰 중심을 사용자 마커 좌표로 맞춤 (token 은 클릭마다 증가) */
   const [userRecenterTarget, setUserRecenterTarget] = useState<{
     lat: number;
     lng: number;
     token: number;
   } | null>(null);
+  const userRecenterSeqRef = useRef(0);
   const { center, accuracyM, status, refreshLocation } = useUserLocation(DEFAULT_CENTER);
   /** API로 주변 상장사만 채움 — 빈 배열이면 지도에 핀 없음(춘천 목업 좌표가 남지 않도록) */
   const [stocks, setStocks] = useState<StockPin[]>([]);
@@ -295,7 +296,10 @@ const Index = () => {
           onClick={() => {
             void (async () => {
               const pos = await refreshLocation();
-              if (pos) setUserRecenterTarget({ ...pos, token: Date.now() });
+              if (pos) {
+                userRecenterSeqRef.current += 1;
+                setUserRecenterTarget({ ...pos, token: userRecenterSeqRef.current });
+              }
             })();
           }}
           className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-md ring-2 ring-background/80 transition-transform active:scale-95"
