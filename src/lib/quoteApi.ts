@@ -31,8 +31,10 @@ async function parseQuotesResponse(r: Response): Promise<LiveQuote[]> {
  * Capacitor(file/localhost WebView)는 localhost 로 잡히므로 env(VITE_CHAT_API_ORIGIN) 필수.
  */
 export function getPublicApiOrigin(): string | undefined {
-  const fromEnv = import.meta.env.VITE_CHAT_API_ORIGIN?.replace(/\/$/, "");
-  if (fromEnv) return fromEnv;
+  const chat = import.meta.env.VITE_CHAT_API_ORIGIN?.replace(/\/$/, "");
+  if (chat) return chat;
+  const vercel = import.meta.env.VITE_VERCEL_ORIGIN?.replace(/\/$/, "");
+  if (vercel) return vercel;
   if (typeof window === "undefined") return undefined;
   const o = window.location.origin;
   if (!o || o.includes("localhost") || o.includes("127.0.0.1")) return undefined;
@@ -58,8 +60,8 @@ function collectQuotesUrls(qs: string): string[] {
   return Array.from(new Set(urls));
 }
 
-/** 서버 API가 전부 빈 배열일 때 — 네이버 모바일 API (일부 환경에서 CORS 허용, 실패 시 조용히 무시) */
-async function fetchNaverQuoteInBrowser(ticker6: string): Promise<LiveQuote | null> {
+/** 브라우저에서 네이버 모바일 시세 (시트에서 서버보다 먼저 시도 가능) */
+export async function fetchKrxQuoteFromNaverClient(ticker6: string): Promise<LiveQuote | null> {
   const code = ticker6.padStart(6, "0");
   try {
     const r = await fetch(`https://m.stock.naver.com/api/stock/${code}/basic`, {
@@ -116,7 +118,8 @@ export async function fetchYahooQuotes(tickers: string[]): Promise<LiveQuote[]> 
       const r = await fetch(url, { cache: "no-store" });
       if (!r.ok) continue;
       const list = await parseQuotesResponse(r);
-      if (list.length > 0) return list;
+      const matched = takeMatchingQuotes(list, normalized);
+      if (matched.length > 0) return matched;
     } catch {
       /* 다음 URL */
     }
@@ -124,8 +127,28 @@ export async function fetchYahooQuotes(tickers: string[]): Promise<LiveQuote[]> 
 
   const fromNaver: LiveQuote[] = [];
   for (const t of normalized) {
-    const q = await fetchNaverQuoteInBrowser(t);
+    const q = await fetchKrxQuoteFromNaverClient(t);
     if (q) fromNaver.push(q);
   }
-  return fromNaver;
+  return takeMatchingQuotes(fromNaver, normalized);
+}
+
+/** 요청한 티커와 응답 항목이 일치하는지 확인 (서버가 빈 배열·엉뚱한 형식을 줄 때 대비) */
+function filterQuotesForTickers(list: LiveQuote[], wanted: string[]): LiveQuote[] {
+  const need = new Set(wanted);
+  return list.filter((q) => {
+    const k = normalizeKrxTickerKey(q.ticker);
+    return k != null && need.has(k);
+  });
+}
+
+/**
+ * 서버에서 받은 quotes 배열이 요청을 충족하면 반환. 부분만 맞으면 부분 반환(지도 일부 갱신).
+ */
+function takeMatchingQuotes(list: LiveQuote[], wanted: string[]): LiveQuote[] {
+  const m = filterQuotesForTickers(list, wanted);
+  if (m.length === 0) return [];
+  if (wanted.length <= 1) return m;
+  if (m.length === wanted.length) return m;
+  return m;
 }

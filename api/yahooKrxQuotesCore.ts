@@ -309,19 +309,19 @@ export async function getKrxQuotesFromYahoo(tickersInput: string[]): Promise<Krx
       out.push(primary);
       continue;
     }
-    // v7 배치가 비었거나 가격 필드가 비어 매칭 실패한 경우 — Chart v8 단건 폴백
+    // v7 배치가 비었거나 가격 필드가 비어 매칭 실패 — 한국 종목은 네이버가 Yahoo 차트보다 Vercel에서 안정적
+    const fromNaver = await fetchQuoteFromNaverMobile(t);
+    if (fromNaver) {
+      out.push(fromNaver);
+      continue;
+    }
     const fromChartKs = await fetchQuoteFromYahooChart(`${t}.KS`, t);
     if (fromChartKs) {
       out.push(fromChartKs);
       continue;
     }
     const fromChartKq = await fetchQuoteFromYahooChart(`${t}.KQ`, t);
-    if (fromChartKq) {
-      out.push(fromChartKq);
-      continue;
-    }
-    const fromNaver = await fetchQuoteFromNaverMobile(t);
-    if (fromNaver) out.push(fromNaver);
+    if (fromChartKq) out.push(fromChartKq);
   }
 
   return out;
