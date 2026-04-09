@@ -108,13 +108,7 @@ export default defineConfig(({ mode }) => {
   /** 로컬 `npm run dev`에서 배포된 Vercel API로 /api 프록시 (예: https://xxx.vercel.app) */
   const devApiProxy = env.VITE_DEV_API_PROXY?.replace(/\/$/, "");
 
-  /** Vercel 빌드 시 자동 주입 — 클라이언트가 VITE_CHAT_API_ORIGIN 없이도 API 절대 URL 사용 가능 */
-  const vercelOrigin = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "";
-
   return {
-    define: {
-      "import.meta.env.VITE_VERCEL_ORIGIN": JSON.stringify(vercelOrigin),
-    },
     server: {
       host: "::",
       port: 8080,

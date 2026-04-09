@@ -6,8 +6,6 @@ interface ImportMetaEnv {
    * (예: https://xxx.vercel.app — 끝 슬래시 없음)
    */
   readonly VITE_CHAT_API_ORIGIN?: string;
-  /** Vite 빌드 시 Vercel만 주입 (로컬 빌드는 빈 문자열) */
-  readonly VITE_VERCEL_ORIGIN?: string;
   /** Supabase 본인 프로젝트 URL */
   readonly VITE_SUPABASE_URL?: string;
   /** Supabase anon public key */

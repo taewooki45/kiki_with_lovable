@@ -3,7 +3,7 @@ import { TrendingUp, TrendingDown, X, ShoppingCart, Building2, Tag, RefreshCw } 
 import { Button } from "@/components/ui/button";
 import StockSheetChat from "@/components/StockSheetChat";
 import type { StockPin } from "@/types/stock";
-import { fetchYahooQuotes, fetchKrxQuoteFromNaverClient, normalizeKrxTickerKey } from "@/lib/quoteApi";
+import { fetchYahooQuotes, normalizeKrxTickerKey } from "@/lib/quoteApi";
 
 interface StockInfoSheetProps {
   stock: StockPin | null;
@@ -38,18 +38,6 @@ const StockInfoSheet = ({ stock, onClose, cashBalance }: StockInfoSheetProps) =>
 
     void (async () => {
       try {
-        /** 브라우저→네이버가 CORS로 되면 서버보다 빠르게 성공 */
-        const naverDirect = await fetchKrxQuoteFromNaverClient(t);
-        if (cancelled) return;
-        if (naverDirect) {
-          setSheetQuote({
-            price: Math.round(naverDirect.price),
-            changePercent: naverDirect.changePercent,
-          });
-          setQuoteError(false);
-          return;
-        }
-
         const qs = await fetchYahooQuotes([t]);
         if (cancelled) return;
         if (qs[0]) {
