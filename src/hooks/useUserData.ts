@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MOCK_USER_WALK } from "@/data/mockStocks";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/AuthContext";
-import type { HoldingStock, UserWalk } from "@/types/stock";
+import type { HoldingStock, ScrappedStock, UserWalk } from "@/types/stock";
 
 interface WeeklyStepPoint {
   day: string;
@@ -15,9 +15,12 @@ interface UseUserDataResult {
   nickname: string;
   weeklySteps: WeeklyStepPoint[];
   holdings: HoldingStock[];
+  scraps: ScrappedStock[];
   setGoalSteps: (goal: number) => void;
   setNickname: (nickname: string) => void;
   addSteps: (steps: number) => void;
+  toggleScrap: (stock: { ticker: string; name: string; sector?: string | null }) => void;
+  isScrapped: (ticker: string) => boolean;
   isReady: boolean;
 }
 
@@ -71,12 +74,45 @@ function defaultWeekly(): WeeklyStepPoint[] {
   return arr;
 }
 
+function normalizeTicker(raw: string): string {
+  const digits = String(raw).replace(/\D/g, "");
+  if (digits.length === 0) return "";
+  if (digits.length <= 6) return digits.padStart(6, "0");
+  return digits.slice(-6);
+}
+
+function getScrapStorageKey(userId: string | undefined): string {
+  return `kiki_scraps_v1:${userId ?? "guest"}`;
+}
+
+function loadScrapsFromStorage(userId: string | undefined): ScrappedStock[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(getScrapStorageKey(userId));
+    if (!raw) return [];
+    const arr = JSON.parse(raw) as ScrappedStock[];
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((s) => typeof s?.ticker === "string" && typeof s?.name === "string")
+      .map((s) => ({
+        ticker: normalizeTicker(s.ticker),
+        name: String(s.name).trim() || s.ticker,
+        sector: String(s.sector ?? "기타").trim() || "기타",
+        savedAt: String(s.savedAt ?? new Date().toISOString()),
+      }))
+      .filter((s) => s.ticker.length > 0);
+  } catch {
+    return [];
+  }
+}
+
 export function useUserData(): UseUserDataResult {
   const { session, isAuthenticated } = useAuth();
   const [walk, setWalk] = useState<UserWalk>(MOCK_USER_WALK);
   const [nickname, setNicknameState] = useState("투자자님");
   const [weeklySteps, setWeeklySteps] = useState<WeeklyStepPoint[]>(defaultWeekly);
   const [holdings, setHoldings] = useState<HoldingStock[]>([]);
+  const [scraps, setScraps] = useState<ScrappedStock[]>([]);
   const [isReady, setIsReady] = useState(false);
   const queueRef = useRef(Promise.resolve());
   const lastDateRef = useRef(dateKey());
@@ -195,12 +231,30 @@ export function useUserData(): UseUserDataResult {
       setWalk(MOCK_USER_WALK);
       setWeeklySteps(defaultWeekly().map((d, idx) => ({ ...d, steps: [4120, 5340, 4880, 6230, 5720, 7010, 3247][idx] })));
       setHoldings([]);
+      setScraps(loadScrapsFromStorage(undefined));
       setNicknameState("투자자님");
       setIsReady(true);
       return;
     }
     void syncFromDb();
   }, [isAuthenticated, syncFromDb]);
+
+  /** 사용자별(localStorage) 스크랩 로드 */
+  useEffect(() => {
+    const userId = session?.user?.id;
+    setScraps(loadScrapsFromStorage(userId));
+  }, [session?.user?.id, isAuthenticated]);
+
+  /** 스크랩 저장: 현재 로그인 사용자 키에 동기화 */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const userId = session?.user?.id;
+    try {
+      window.localStorage.setItem(getScrapStorageKey(userId), JSON.stringify(scraps));
+    } catch {
+      // 저장 실패 시 UX는 유지 (권한/용량 이슈)
+    }
+  }, [scraps, session?.user?.id]);
 
   useEffect(() => {
     if (!isAuthenticated || !supabase || !session?.user?.id) return;
@@ -297,17 +351,50 @@ export function useUserData(): UseUserDataResult {
     [enqueue, session?.user?.id, walk.cashBalance, walk.cashPerStep, walk.goalSteps],
   );
 
+  const toggleScrap = useCallback((stock: { ticker: string; name: string; sector?: string | null }) => {
+    const key = normalizeTicker(stock.ticker);
+    if (!key) return;
+
+    setScraps((prev) => {
+      const idx = prev.findIndex((s) => normalizeTicker(s.ticker) === key);
+      if (idx >= 0) {
+        return prev.filter((_, i) => i !== idx);
+      }
+      return [
+        {
+          ticker: key,
+          name: stock.name?.trim() || key,
+          sector: stock.sector?.trim() || "기타",
+          savedAt: new Date().toISOString(),
+        },
+        ...prev,
+      ];
+    });
+  }, []);
+
+  const isScrapped = useCallback(
+    (ticker: string) => {
+      const key = normalizeTicker(ticker);
+      if (!key) return false;
+      return scraps.some((s) => normalizeTicker(s.ticker) === key);
+    },
+    [scraps],
+  );
+
   return useMemo(
     () => ({
       walk,
       nickname,
       weeklySteps,
       holdings,
+      scraps,
       setGoalSteps,
       setNickname,
       addSteps,
+      toggleScrap,
+      isScrapped,
       isReady,
     }),
-    [walk, nickname, weeklySteps, holdings, setGoalSteps, setNickname, addSteps, isReady],
+    [walk, nickname, weeklySteps, holdings, scraps, setGoalSteps, setNickname, addSteps, toggleScrap, isScrapped, isReady],
   );
 }

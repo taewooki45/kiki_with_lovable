@@ -44,6 +44,15 @@ export interface HoldingStock {
   currentPrice: number;
 }
 
+/** 사용자가 관심 저장(스크랩)한 종목 */
+export interface ScrappedStock {
+  ticker: string;
+  name: string;
+  sector: string;
+  /** ISO 문자열 */
+  savedAt: string;
+}
+
 /** 채팅 메시지 */
 export interface ChatMessage {
   id: string;

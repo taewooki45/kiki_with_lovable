@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { TrendingUp, TrendingDown, X, ShoppingCart, Building2, Tag, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, X, ShoppingCart, Building2, Tag, RefreshCw, Bookmark, BookmarkCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StockSheetChat from "@/components/StockSheetChat";
 import type { StockPin } from "@/types/stock";
@@ -9,10 +9,12 @@ interface StockInfoSheetProps {
   stock: StockPin | null;
   onClose: () => void;
   cashBalance: number;
+  isScrapped: boolean;
+  onToggleScrap: () => void;
 }
 
 /** 시트가 열리면 부모 state를 기다리지 않고 즉시 /api/quotes 호출 → 체감 지연 감소 */
-const StockInfoSheet = ({ stock, onClose, cashBalance }: StockInfoSheetProps) => {
+const StockInfoSheet = ({ stock, onClose, cashBalance, isScrapped, onToggleScrap }: StockInfoSheetProps) => {
   const [sheetQuote, setSheetQuote] = useState<{ price: number; changePercent: number } | null>(null);
   const [quoteError, setQuoteError] = useState(false);
   /** 시세 재요청 (다시 시도 버튼) */
@@ -104,7 +106,7 @@ const StockInfoSheet = ({ stock, onClose, cashBalance }: StockInfoSheetProps) =>
         {/* Handle */}
         <div className="mx-auto mb-4 h-1 w-10 shrink-0 rounded-full bg-muted" />
 
-        {/* Header: 종목명 + 매수/캐시 부족 + 닫기 */}
+        {/* Header: 종목명 + 매수/캐시 부족 + 액션(닫기/스크랩) */}
         <div className="mb-4 flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
@@ -155,14 +157,32 @@ const StockInfoSheet = ({ stock, onClose, cashBalance }: StockInfoSheetProps) =>
                 )}
               </span>
             </Button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted transition-colors hover:bg-muted/80"
-              aria-label="닫기"
-            >
-              <X className="h-4 w-4 text-muted-foreground" />
-            </button>
+            {/* 요청사항: 닫기 버튼을 위로 올리고, 같은 위치에 스크랩 버튼 추가 */}
+            <div className="flex shrink-0 flex-col items-center gap-1">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-muted transition-colors hover:bg-muted/80"
+                aria-label="닫기"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+              <button
+                type="button"
+                onClick={onToggleScrap}
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                  isScrapped ? "bg-primary/15 hover:bg-primary/20" : "bg-muted hover:bg-muted/80"
+                }`}
+                aria-label={isScrapped ? "스크랩 해제" : "스크랩"}
+                aria-pressed={isScrapped}
+              >
+                {isScrapped ? (
+                  <BookmarkCheck className="h-4 w-4 text-primary" />
+                ) : (
+                  <Bookmark className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
