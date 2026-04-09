@@ -56,7 +56,10 @@ function toDescription(tags: Record<string, string> | undefined, stationName: st
   if (tags.amenity) parts.push(`amenity=${tags.amenity}`);
   if (tags.industrial) parts.push(`industrial=${tags.industrial}`);
   const detail = parts.length > 0 ? parts.join(", ") : "업종 정보 없음";
-  return `${stationName} 반경 1km 기업 정보 (${detail}) · ${sourceHint}`;
+  /** ticker 복구(repair) 시 resolveListedKrx 가 브랜드명을 찾을 수 있게 문자열에 포함 */
+  const brandOp = [tags.brand, tags.operator].map((s) => (typeof s === "string" ? s.trim() : "")).filter(Boolean);
+  const brandHint = brandOp.length ? ` · ${brandOp.join(" ")}` : "";
+  return `${stationName} 반경 1km 기업 정보 (${detail}) · ${sourceHint}${brandHint}`;
 }
 
 function toCompany(stationName: "서울숲역" | "여의도역", el: OverpassElement): CrawledCompany | null {
