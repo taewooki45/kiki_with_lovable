@@ -13,25 +13,47 @@ interface YahooQuoteRow {
   symbol?: string;
   regularMarketPrice?: number;
   postMarketPrice?: number;
+  preMarketPrice?: number;
   bid?: number;
   ask?: number;
   regularMarketPreviousClose?: number;
   regularMarketChangePercent?: number;
 }
 
+/** Yahoo가 서버 fetch 에서 가격 필드를 비우는 경우 → 호가 중간·전일 종가 등으로 보강 */
 function pickPrice(row: YahooQuoteRow): number | null {
-  const nums = [
-    row.regularMarketPrice,
-    row.postMarketPrice,
-    row.bid,
-    row.ask,
-    row.regularMarketPreviousClose,
-  ];
-  for (const n of nums) {
-    if (n != null && Number.isFinite(n) && n > 0) return n;
-  }
-  return null;
+  const { regularMarketPrice, postMarketPrice, preMarketPrice, bid, ask, regularMarketPreviousClose } =
+    row;
+
+  const tryNum = (n: number | undefined): number | null =>
+    n != null && Number.isFinite(n) && n > 0 ? n : null;
+
+  const rmp = tryNum(regularMarketPrice);
+  if (rmp != null) return rmp;
+
+  const pmp = tryNum(postMarketPrice);
+  if (pmp != null) return pmp;
+
+  const pre = tryNum(preMarketPrice);
+  if (pre != null) return pre;
+
+  const b = tryNum(bid);
+  const a = tryNum(ask);
+  if (b != null && a != null) return (b + a) / 2;
+  if (b != null) return b;
+  if (a != null) return a;
+
+  return tryNum(regularMarketPreviousClose);
 }
+
+/** Node/Vercel 기본 UA 는 Yahoo 가 403·빈 결과를 자주 반환 — 브라우저 UA 필수에 가깝게 */
+const YAHOO_FETCH_HEADERS: HeadersInit = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+  Accept: "application/json,text/plain,*/*",
+  "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+  Referer: "https://finance.yahoo.com/",
+};
 
 /** 쿼리 tickers= 문자열 → 6자리 종목코드 배열 */
 export function parseTickersQuery(raw: string): string[] {
@@ -87,16 +109,27 @@ export async function getKrxQuotesFromYahoo(tickersInput: string[]): Promise<Krx
 
   const fetchYahooBatch = async (symbols: string[]): Promise<YahooQuoteRow[]> => {
     if (symbols.length === 0) return [];
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(","))}`;
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`Yahoo ${r.status}`);
-    const json = (await r.json()) as {
-      quoteResponse?: { result?: YahooQuoteRow[]; error?: unknown };
-    };
-    if (json.quoteResponse?.error) {
-      console.warn("[yahooKrxQuotesCore] quoteResponse.error:", json.quoteResponse.error);
+    const q = encodeURIComponent(symbols.join(","));
+    const hosts = ["https://query1.finance.yahoo.com", "https://query2.finance.yahoo.com"] as const;
+
+    for (const host of hosts) {
+      const url = `${host}/v7/finance/quote?symbols=${q}`;
+      const r = await fetch(url, { cache: "no-store", headers: YAHOO_FETCH_HEADERS });
+      if (!r.ok) {
+        console.warn("[yahooKrxQuotesCore] Yahoo HTTP", r.status, host);
+        continue;
+      }
+      const json = (await r.json()) as {
+        quoteResponse?: { result?: YahooQuoteRow[]; error?: unknown };
+      };
+      if (json.quoteResponse?.error) {
+        console.warn("[yahooKrxQuotesCore] quoteResponse.error:", json.quoteResponse.error);
+      }
+      const result = Array.isArray(json.quoteResponse?.result) ? json.quoteResponse!.result! : [];
+      if (result.length > 0) return result;
     }
-    return Array.isArray(json.quoteResponse?.result) ? json.quoteResponse!.result! : [];
+
+    return [];
   };
 
   const MAX_SYMBOLS = 80;
