@@ -70,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .lte("lat", lat + latPad)
       .gte("lng", lng - lngPad)
       .lte("lng", lng + lngPad)
-      .limit(200);
+      .limit(500);
 
     if (error) {
       res.status(500).json({ error: error.message });

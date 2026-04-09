@@ -68,6 +68,8 @@ function openaiChatProxy(openaiKey: string | undefined): Plugin {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const openaiKey = env.OPENAI_API_KEY;
+  /** 로컬 `npm run dev`에서 배포된 Vercel API로 /api 프록시 (예: https://xxx.vercel.app) */
+  const devApiProxy = env.VITE_DEV_API_PROXY?.replace(/\/$/, "");
 
   return {
     server: {
@@ -76,6 +78,17 @@ export default defineConfig(({ mode }) => {
       hmr: {
         overlay: false,
       },
+      ...(devApiProxy
+        ? {
+            proxy: {
+              "/api": {
+                target: devApiProxy,
+                changeOrigin: true,
+                secure: true,
+              },
+            },
+          }
+        : {}),
     },
     plugins: [react(), mode === "development" && componentTagger(), openaiChatProxy(openaiKey)].filter(
       Boolean

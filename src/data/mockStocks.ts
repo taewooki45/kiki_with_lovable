@@ -35,6 +35,7 @@ export const MOCK_TRENDING: TrendingStock[] = [
   { ticker: "032830", name: "삼성생명", price: 85200, changePercent: -0.4, district: "여의도", distance: 3200 },
 ];
 
-/** 사용자 현재 위치 (춘천 시내) */
-export const DEFAULT_CENTER = { lat: 37.8800, lng: 127.7300 };
-export const DEFAULT_RADIUS_M = 500;
+/** 앱 초기 지도 중심 (GPS 전) — 서울 지하철 5·9호선 여의도역 (sync STATIONS와 동일) */
+export const DEFAULT_CENTER = { lat: 37.521758, lng: 126.924139 };
+/** 주변 POI 조회·지도 원 반경 — sync 크롤 반경(1km)과 맞춤 */
+export const DEFAULT_RADIUS_M = 1000;

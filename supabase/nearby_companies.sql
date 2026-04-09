@@ -19,3 +19,13 @@ create table if not exists public.nearby_companies (
 
 create index if not exists nearby_companies_lat_idx on public.nearby_companies (lat);
 create index if not exists nearby_companies_lng_idx on public.nearby_companies (lng);
+
+-- 지도 API(anon) 읽기 — RLS 켠 뒤 정책 없으면 행이 0건으로 보일 수 있음
+alter table public.nearby_companies enable row level security;
+
+drop policy if exists "nearby_companies_select_public" on public.nearby_companies;
+create policy "nearby_companies_select_public"
+  on public.nearby_companies
+  for select
+  to anon, authenticated
+  using (true);
