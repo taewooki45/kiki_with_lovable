@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { resolveListedFromDbRow } from "../../src/lib/poiTickerResolve";
+import { getSupabaseUrlAndAnonKey } from "../supabasePublicEnv";
 
 function normalizeKrxTicker(raw: string | null | undefined): string | null {
   if (raw == null) return null;
@@ -103,15 +104,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const supabaseUrl = process.env.VITE_SUPABASE_URL;
-  const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !anonKey) {
-    res.status(503).json({ error: "Supabase env is not configured" });
+  const cfg = getSupabaseUrlAndAnonKey();
+  if (!cfg) {
+    res.status(503).json({
+      error:
+        "Supabase env is not configured. Set VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY or SUPABASE_URL + SUPABASE_ANON_KEY on Vercel.",
+    });
     return;
   }
 
   try {
-    const supabase = createClient(supabaseUrl, anonKey);
+    const supabase = createClient(cfg.url, cfg.anonKey);
 
     const fetchInBbox = async (bboxRadiusM: number) => {
       const latPad = bboxRadiusM / 111320;
@@ -137,7 +140,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let { data, error } = await fetchInBbox(bboxRadius);
 
     if (error) {
-      res.status(500).json({ error: error.message });
+      console.error("[api/companies/nearby] Supabase:", error.message, error.code ?? "");
+      res.status(502).json({
+        error: error.message,
+        code: error.code,
+        hint: "Check Vercel env (SUPABASE_URL + SUPABASE_ANON_KEY) and that nearby_companies exists with RLS select for anon.",
+      });
       return;
     }
 
